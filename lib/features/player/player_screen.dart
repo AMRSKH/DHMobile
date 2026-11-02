@@ -9,6 +9,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
+import '../library/library_controller.dart';
+import '../settings/settings_controller.dart';
 import 'player_controller.dart';
 import 'widgets/gesture_overlay.dart';
 import 'widgets/player_controls.dart';
@@ -17,12 +19,14 @@ class PlayerScreen extends ConsumerStatefulWidget {
   final Show show;
   final List<Episode> episodes;
   final int initialEpisodeIndex;
+  final int? initialPositionMs;
 
   const PlayerScreen({
     super.key,
     required this.show,
     required this.episodes,
     this.initialEpisodeIndex = 0,
+    this.initialPositionMs,
   });
 
   @override
@@ -48,12 +52,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _showControls = true;
   Timer? _hideControlsTimer;
   Timer? _positionPollTimer;
+  Timer? _saveProgressTimer;
   String? _errorMessage;
+  int _pendingResumeMs = 0;
 
   @override
   void initState() {
     super.initState();
     _currentEpisodeIndex = widget.initialEpisodeIndex;
+    _pendingResumeMs = widget.initialPositionMs ?? 0;
 
     // Lock landscape & hide system bars
     SystemChrome.setPreferredOrientations([
@@ -64,10 +71,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     WakelockPlus.enable();
 
     _startHideControlsTimer();
+    _startProgressSavingTimer();
   }
 
   @override
   void dispose() {
+    _saveProgress();
+    _saveProgressTimer?.cancel();
     _hideControlsTimer?.cancel();
     _positionPollTimer?.cancel();
     _disposePlayers();
@@ -100,6 +110,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
   }
 
+  void _startProgressSavingTimer() {
+    _saveProgressTimer?.cancel();
+    _saveProgressTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _saveProgress();
+    });
+  }
+
+  void _saveProgress() {
+    if (_position.inSeconds > 2 && _duration.inSeconds > 5) {
+      try {
+        final storage = ref.read(storageServiceProvider);
+        storage.saveHistory(
+          show: widget.show,
+          episode: _currentEpisode,
+          positionMs: _position.inMilliseconds,
+          durationMs: _duration.inMilliseconds,
+        );
+      } catch (_) {}
+    }
+  }
+
   void _toggleControls() {
     setState(() {
       _showControls = !_showControls;
@@ -120,7 +151,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     try {
       if (!_useFallbackPlayer) {
-        // Try VLC first
+        // VLC Player
         final vlcOptions = VlcPlayerOptions(
           advanced: VlcAdvancedOptions([
             VlcAdvancedOptions.networkCaching(3000),
@@ -145,7 +176,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
         _startPositionPolling();
       } else {
-        // Fallback to standard video_player
+        // Fallback VideoPlayer
         final vp = VideoPlayerController.networkUrl(
           Uri.parse(source.url),
           httpHeaders: source.headers,
@@ -154,15 +185,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         await vp.initialize();
         vp.addListener(_vpListener);
         await vp.play();
-        setState(() {
-          _isBuffering = false;
-          _isPlaying = true;
-          _duration = vp.value.duration;
-        });
+        if (mounted) {
+          setState(() {
+            _isBuffering = false;
+            _isPlaying = true;
+            _duration = vp.value.duration;
+          });
+          _checkAndApplyResume();
+        }
       }
     } catch (e) {
       if (!_useFallbackPlayer) {
-        // Automatically switch to fallback video_player
         setState(() {
           _useFallbackPlayer = true;
         });
@@ -173,6 +206,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _errorMessage = 'Playback failed. Try switching servers.';
         });
       }
+    }
+  }
+
+  void _checkAndApplyResume() {
+    if (_pendingResumeMs > 3000) {
+      final resumeMs = _pendingResumeMs;
+      _pendingResumeMs = 0;
+      _seekTo(Duration(milliseconds: resumeMs));
     }
   }
 
@@ -187,8 +228,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _duration = value.duration;
     });
 
+    if (value.isPlaying && _pendingResumeMs > 0) {
+      _checkAndApplyResume();
+    }
+
     if (value.hasError) {
-      // Auto-fallback on decode error
       setState(() {
         _useFallbackPlayer = true;
       });
@@ -252,12 +296,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_vlcController != null) {
       if (_isPlaying) {
         _vlcController!.pause();
+        _saveProgress();
       } else {
         _vlcController!.play();
       }
     } else if (_vpController != null) {
       if (_isPlaying) {
         _vpController!.pause();
+        _saveProgress();
       } else {
         _vpController!.play();
       }
@@ -277,13 +323,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _handleNextEpisode() {
+    _saveProgress();
     if (_currentEpisodeIndex < widget.episodes.length - 1) {
       setState(() {
         _currentEpisodeIndex++;
         _currentSourceIndex = 0;
+        _pendingResumeMs = 0;
       });
       ref.invalidate(episodeStreamsProvider(_currentEpisode.id));
     }
+  }
+
+  int _findInitialSourceIndex(List<StreamSource> sources) {
+    final settings = ref.read(settingsProvider);
+    final preferredQuality = settings.defaultQuality.toLowerCase();
+    if (preferredQuality == 'auto') return 0;
+
+    final matchIndex = sources.indexWhere((s) => s.quality.toLowerCase().contains(preferredQuality));
+    return matchIndex >= 0 ? matchIndex : 0;
   }
 
   @override
@@ -325,6 +382,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           if (sources != _availableSources) {
             _availableSources = sources;
             if (sources.isNotEmpty) {
+              _currentSourceIndex = _findInitialSourceIndex(sources);
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 _initializeStream(sources[_currentSourceIndex]);
               });
