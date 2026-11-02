@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../domain/models/show.dart';
+import '../detail/detail_screen.dart';
 import 'search_controller.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -125,10 +126,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         if (widget.onShowSelected != null) {
                           widget.onShowSelected!(show);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Selected: ${show.title}'),
-                              duration: const Duration(seconds: 1),
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DetailScreen(show: show),
                             ),
                           );
                         }
