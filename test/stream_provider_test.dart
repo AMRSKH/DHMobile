@@ -3,6 +3,7 @@ import 'package:donghua_player/domain/models/show.dart';
 import 'package:donghua_player/domain/models/episode.dart';
 import 'package:donghua_player/domain/models/stream_source.dart';
 import 'package:donghua_player/data/providers/animexin_stream_provider.dart';
+import 'package:donghua_player/data/providers/stream_resolver.dart';
 
 void main() {
   group('Donghua Models & Provider Tests', () {
@@ -55,6 +56,14 @@ void main() {
       final results = await provider.search('');
       expect(results.isNotEmpty, isTrue);
       expect(results.first.title, contains('Battle Through the Heavens'));
+    });
+
+    test('StreamResolver direct m3u8 or mp4 handling', () async {
+      final resolver = StreamResolver();
+      final sources = await resolver.resolve('https://example.com/stream.m3u8', serverHint: 'CDN 1');
+      expect(sources.isNotEmpty, isTrue);
+      expect(sources.first.url, equals('https://example.com/stream.m3u8'));
+      expect(sources.first.server, equals('CDN 1'));
     });
   });
 }

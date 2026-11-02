@@ -53,6 +53,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Timer? _hideControlsTimer;
   Timer? _positionPollTimer;
   Timer? _saveProgressTimer;
+  Timer? _bufferingWatchdog;
   String? _errorMessage;
   int _pendingResumeMs = 0;
 
@@ -91,9 +92,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _disposePlayers() {
     _positionPollTimer?.cancel();
-    _vlcController?.stop();
-    _vlcController?.dispose();
-    _vlcController = null;
+    _positionPollTimer = null;
+    _bufferingWatchdog?.cancel();
+    _bufferingWatchdog = null;
+    if (_vlcController != null) {
+      if (_vlcController!.value.isInitialized) {
+        try {
+          _vlcController!.stop();
+        } catch (_) {}
+      }
+      try {
+        _vlcController!.dispose();
+      } catch (_) {}
+      _vlcController = null;
+    }
 
     _vpController?.dispose();
     _vpController = null;
@@ -149,6 +161,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _errorMessage = null;
     });
 
+    _resetBufferingWatchdog();
+
     try {
       if (!_useFallbackPlayer) {
         // VLC Player
@@ -166,20 +180,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
         final controller = VlcPlayerController.network(
           source.url,
-          hwAcc: HwAcc.full,
+          hwAcc: HwAcc.auto,
           autoPlay: true,
           options: vlcOptions,
         );
 
         _vlcController = controller;
         controller.addListener(_vlcListener);
-
-        _startPositionPolling();
       } else {
         // Fallback VideoPlayer
+        final Map<String, String> safeHeaders = {};
+        if (source.headers.containsKey('User-Agent')) {
+          safeHeaders['User-Agent'] = source.headers['User-Agent']!;
+        }
+        if (!source.url.contains('googleapis.com') &&
+            !source.url.contains('mux.dev') &&
+            !source.url.contains('okcdn.ru') &&
+            !source.url.contains('dailymotion.com') &&
+            source.headers.containsKey('Referer')) {
+          safeHeaders['Referer'] = source.headers['Referer']!;
+        }
+
         final vp = VideoPlayerController.networkUrl(
           Uri.parse(source.url),
-          httpHeaders: source.headers,
+          httpHeaders: safeHeaders.isNotEmpty ? safeHeaders : const {},
         );
         _vpController = vp;
         await vp.initialize();
@@ -191,6 +215,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             _isPlaying = true;
             _duration = vp.value.duration;
           });
+          _bufferingWatchdog?.cancel();
           _checkAndApplyResume();
         }
       }
@@ -207,6 +232,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         });
       }
     }
+  }
+
+  void _resetBufferingWatchdog() {
+    _bufferingWatchdog?.cancel();
+    _bufferingWatchdog = Timer(const Duration(seconds: 4), () {
+      if (mounted && _isBuffering && !_isPlaying) {
+        if (!_useFallbackPlayer) {
+          setState(() {
+            _useFallbackPlayer = true;
+          });
+          _initializeStream(_availableSources[_currentSourceIndex]);
+        } else if (_currentSourceIndex < _availableSources.length - 1) {
+          setState(() {
+            _currentSourceIndex++;
+          });
+          _initializeStream(_availableSources[_currentSourceIndex]);
+        }
+      }
+    });
   }
 
   void _checkAndApplyResume() {
@@ -227,6 +271,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _position = value.position;
       _duration = value.duration;
     });
+
+    if (value.isPlaying) {
+      _bufferingWatchdog?.cancel();
+    }
+
+    if (value.isInitialized && _positionPollTimer == null) {
+      _startPositionPolling();
+    }
 
     if (value.isPlaying && _pendingResumeMs > 0) {
       _checkAndApplyResume();
@@ -255,6 +307,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _duration = value.duration;
     });
 
+    if (value.isPlaying) {
+      _bufferingWatchdog?.cancel();
+    }
+
     if (value.position >= value.duration && value.duration > Duration.zero) {
       _handleNextEpisode();
     }
@@ -263,15 +319,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _startPositionPolling() {
     _positionPollTimer?.cancel();
     _positionPollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      if (_vlcController != null && mounted) {
-        final pos = await _vlcController!.getPosition();
-        final dur = await _vlcController!.getDuration();
-        if (mounted) {
-          setState(() {
-            _position = pos;
-            _duration = dur;
-          });
-        }
+      if (_vlcController != null && mounted && _vlcController!.value.isInitialized) {
+        try {
+          final pos = await _vlcController!.getPosition();
+          final dur = await _vlcController!.getDuration();
+          if (mounted) {
+            setState(() {
+              _position = pos;
+              _duration = dur;
+            });
+          }
+        } catch (_) {}
       }
     });
   }
@@ -414,23 +472,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               children: [
                 // Video Surface
                 Center(
-                  child: _vlcController != null
+                  child: (!_useFallbackPlayer && _vlcController != null)
                       ? VlcPlayer(
                           controller: _vlcController!,
                           aspectRatio: 16 / 9,
-                          placeholder: const Center(
-                            child: CircularProgressIndicator(color: Color(0xFFE50914)),
-                          ),
+                          placeholder: Container(color: Colors.black),
                         )
                       : (_vpController != null && _vpController!.value.isInitialized)
                           ? AspectRatio(
                               aspectRatio: _vpController!.value.aspectRatio,
                               child: VideoPlayer(_vpController!),
                             )
-                          : const Center(
-                              child: CircularProgressIndicator(color: Color(0xFFE50914)),
-                            ),
+                          : Container(color: Colors.black),
                 ),
+
+                // Single Buffering Indicator when controls are hidden
+                if (_isBuffering && !_showControls)
+                  const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFE50914),
+                      strokeWidth: 3,
+                    ),
+                  ),
 
                 if (_errorMessage != null)
                   Center(

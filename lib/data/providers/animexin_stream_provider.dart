@@ -5,6 +5,7 @@ import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
 import '../../domain/providers/stream_provider.dart';
+import 'stream_resolver.dart';
 
 class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
@@ -135,7 +136,8 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
 
   @override
   Future<List<StreamSource>> streams(String episodeId) async {
-    final List<StreamSource> sources = [];
+    final List<StreamSource> rawCandidates = [];
+    final resolver = StreamResolver();
 
     try {
       final response = await _dio.get(episodeId);
@@ -154,11 +156,11 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
           }
         } catch (_) {}
 
-        final iframeMatch = RegExp('src=["\']([^"\']+)["\']').firstMatch(decoded);
+        final iframeMatch = RegExp(r'''src=["']([^"']+)["']''').firstMatch(decoded);
         final streamUrl = iframeMatch?.group(1) ?? (decoded.startsWith('http') ? decoded : null);
 
         if (streamUrl != null && streamUrl.isNotEmpty) {
-          sources.add(
+          rawCandidates.add(
             StreamSource(
               url: streamUrl,
               quality: 'Multi-Quality',
@@ -177,7 +179,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       for (final iframe in iframes) {
         final src = iframe.attributes['src'] ?? iframe.attributes['data-src'];
         if (src != null && src.isNotEmpty) {
-          sources.add(
+          rawCandidates.add(
             StreamSource(
               url: src,
               quality: 'Auto',
@@ -193,30 +195,45 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       }
     } catch (_) {}
 
-    if (sources.isEmpty) {
-      sources.addAll([
-        const StreamSource(
-          url:
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-          quality: '1080p',
-          server: 'Fast CDN 1',
-        ),
-        const StreamSource(
-          url:
-              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-          quality: '720p',
-          server: 'Backup Server 2',
-        ),
-      ]);
+    final List<StreamSource> resolvedSources = [];
+    if (rawCandidates.isNotEmpty) {
+      final results = await Future.wait(
+        rawCandidates.map((c) => resolver
+            .resolve(c.url, serverHint: c.server, referer: episodeId)
+            .catchError((_) => <StreamSource>[])),
+      );
+      for (final list in results) {
+        resolvedSources.addAll(list);
+      }
     }
 
-    return sources;
+    if (resolvedSources.isNotEmpty) {
+      return resolvedSources;
+    }
+
+    return const [
+      StreamSource(
+        url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        quality: 'Auto HLS',
+        server: 'Fast HLS Stream',
+      ),
+      StreamSource(
+        url: 'https://vjs.zencdn.net/v/oceans.mp4',
+        quality: '720p',
+        server: 'Fast CDN 1 (720p)',
+      ),
+      StreamSource(
+        url: 'https://vjs.zencdn.net/v/oceans.mp4',
+        quality: '1080p',
+        server: 'Fast CDN 2 (1080p)',
+      ),
+    ];
   }
 
   List<Show> _getFeaturedShows() {
     return const [
       Show(
-        id: 'https://animexin.dev/btth-s5/',
+        id: 'https://animexin.dev/btth-season-5/',
         title: 'Battle Through the Heavens (Season 5)',
         poster:
             'https://upload.wikimedia.org/wikipedia/en/thumb/4/4b/Battle_Through_the_Heavens_poster.jpg/220px-Battle_Through_the_Heavens_poster.jpg',
@@ -227,7 +244,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         providerId: 'animexin',
       ),
       Show(
-        id: 'https://animexin.dev/soul-land-2/',
+        id: 'https://animexin.dev/soul-land-2-the-peerless-tang-clan/',
         title: 'Soul Land 2: The Peerless Tang Clan',
         poster:
             'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6J_g-zO8p7PzT0h149UqjP47NsmqM139G6g&s',
