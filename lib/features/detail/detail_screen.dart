@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
+import '../player/player_screen.dart';
 import 'detail_controller.dart';
 
 class DetailScreen extends ConsumerStatefulWidget {
@@ -347,11 +348,14 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     if (widget.onEpisodeSelected != null) {
       widget.onEpisodeSelected!(episode, allEpisodes);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Starting ${episode.title}...'),
-          backgroundColor: const Color(0xFF1C1F26),
-          duration: const Duration(seconds: 1),
+      final epIndex = allEpisodes.indexOf(episode);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlayerScreen(
+            show: widget.show,
+            episodes: allEpisodes,
+            initialEpisodeIndex: epIndex >= 0 ? epIndex : 0,
+          ),
         ),
       );
     }
