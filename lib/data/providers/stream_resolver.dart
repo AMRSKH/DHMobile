@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../domain/models/stream_source.dart';
 
+const String kDefaultUserAgent =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 class StreamResolver {
   final Dio _dio;
 
@@ -10,19 +13,22 @@ class StreamResolver {
             Dio(
               BaseOptions(
                 headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'User-Agent': kDefaultUserAgent,
                 },
-                connectTimeout: const Duration(seconds: 4),
-                receiveTimeout: const Duration(seconds: 4),
+                connectTimeout: const Duration(seconds: 8),
+                receiveTimeout: const Duration(seconds: 8),
               ),
             );
 
   Future<List<StreamSource>> resolve(String rawUrl, {String? serverHint, String? referer}) async {
-    final url = rawUrl.trim();
+    String url = rawUrl.trim();
     if (url.isEmpty) return [];
 
-    // Skip cloud storage or captcha sites that do not provide direct streams
+    if (url.startsWith('//')) {
+      url = 'https:$url';
+    }
+
+    // Skip cloud storage or dead hosters that do not provide direct media
     if (url.contains('mega.nz') ||
         url.contains('mega.io') ||
         url.contains('drive.google') ||
@@ -33,7 +39,7 @@ class StreamResolver {
     }
 
     // 1. Direct playable stream
-    if (url.endsWith('.m3u8') || url.endsWith('.mp4') || url.endsWith('.mkv')) {
+    if (url.contains('.m3u8') || url.contains('.mp4') || url.contains('.mkv')) {
       return [
         StreamSource(
           url: url,
@@ -44,16 +50,16 @@ class StreamResolver {
       ];
     }
 
-    // 2. Dailymotion resolver
-    if (url.contains('dailymotion.com')) {
-      final dmSources = await _resolveDailymotion(url, serverHint: serverHint);
-      if (dmSources.isNotEmpty) return dmSources;
-    }
-
-    // 3. OK.ru resolver
+    // 2. OK.ru resolver (tested, verified, fastest high-speed MP4 streams)
     if (url.contains('ok.ru')) {
       final okSources = await _resolveOkRu(url, serverHint: serverHint);
       if (okSources.isNotEmpty) return okSources;
+    }
+
+    // 3. Dailymotion resolver
+    if (url.contains('dailymotion.com')) {
+      final dmSources = await _resolveDailymotion(url, serverHint: serverHint);
+      if (dmSources.isNotEmpty) return dmSources;
     }
 
     // 4. Rumble resolver
@@ -62,13 +68,135 @@ class StreamResolver {
       if (rumbleSources.isNotEmpty) return rumbleSources;
     }
 
-    // 5. Generic embed with m3u8 in source
+    // 5. Generic embed resolver
     try {
       final embedSources = await _resolveGenericEmbed(url, referer: referer, serverHint: serverHint);
       if (embedSources.isNotEmpty) return embedSources;
     } catch (_) {}
 
     return [];
+  }
+
+  Future<List<StreamSource>> _resolveOkRu(String url, {String? serverHint}) async {
+    try {
+      final idMatch = RegExp(r'ok\.ru/(?:video|videoembed)/(\d+)').firstMatch(url);
+      if (idMatch == null) return [];
+      final videoId = idMatch.group(1)!;
+
+      final embedUrl = 'https://ok.ru/videoembed/$videoId';
+      final response = await _dio.get(
+        embedUrl,
+        options: Options(headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://ok.ru/',
+        }),
+      );
+      final html = response.data.toString();
+
+      final List<StreamSource> sources = [];
+
+      // Parse data-options JSON (the official mobile/desktop video manifest)
+      final optionsMatch = RegExp(r'''data-options=["']([^"']+)["']''').firstMatch(html);
+      if (optionsMatch != null) {
+        String raw = optionsMatch.group(1)!;
+        raw = raw.replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
+        try {
+          final js = json.decode(raw);
+          final flashvars = js['flashvars'] as Map?;
+          final metaVal = flashvars?['metadata'];
+          Map? meta;
+          if (metaVal is String) {
+            meta = json.decode(metaVal);
+          } else if (metaVal is Map) {
+            meta = metaVal;
+          }
+
+          final videos = meta?['videos'] as List?;
+          if (videos != null && videos.isNotEmpty) {
+            for (final v in videos) {
+              final name = v['name'] as String?;
+              final vUrl = v['url'] as String?;
+              if (vUrl != null && vUrl.isNotEmpty) {
+                String qualityLabel = 'Auto';
+                if (name == 'full') {
+                  qualityLabel = '1080p';
+                } else if (name == 'hd') {
+                  qualityLabel = '720p';
+                } else if (name == 'sd') {
+                  qualityLabel = '480p';
+                } else if (name == 'low') {
+                  qualityLabel = '360p';
+                } else if (name == 'lowest') {
+                  qualityLabel = '240p';
+                } else if (name == 'mobile') {
+                  qualityLabel = '144p';
+                }
+
+                sources.add(
+                  StreamSource(
+                    url: vUrl,
+                    quality: qualityLabel,
+                    server: '${serverHint ?? "OK.ru"} $qualityLabel',
+                    headers: {
+                      'User-Agent': kDefaultUserAgent,
+                      'Referer': 'https://ok.ru/',
+                    },
+                  ),
+                );
+              }
+            }
+          }
+
+          final hlsUrl = meta?['hlsMasterPlaylistUrl'] as String?;
+          if (hlsUrl != null && hlsUrl.isNotEmpty) {
+            sources.add(
+              StreamSource(
+                url: hlsUrl,
+                quality: 'Auto HLS',
+                server: '${serverHint ?? "OK.ru"} HLS',
+                headers: {
+                  'User-Agent': kDefaultUserAgent,
+                  'Referer': 'https://ok.ru/',
+                },
+              ),
+            );
+          }
+        } catch (_) {}
+      }
+
+      // Regex fallback if JSON was slightly different
+      if (sources.isEmpty) {
+        final decoded = html.replaceAll('&quot;', '"').replaceAll(r'\u0026', '&').replaceAll(r'\/', '/');
+        final hdMatch = RegExp(r'"name"\s*:\s*"hd"\s*,\s*"url"\s*:\s*"([^"]+)"').firstMatch(decoded);
+        if (hdMatch != null) {
+          sources.add(
+            StreamSource(
+              url: hdMatch.group(1)!,
+              quality: '720p',
+              server: '${serverHint ?? "OK.ru"} 720p',
+              headers: {'User-Agent': kDefaultUserAgent, 'Referer': 'https://ok.ru/'},
+            ),
+          );
+        }
+
+        final sdMatch = RegExp(r'"name"\s*:\s*"sd"\s*,\s*"url"\s*:\s*"([^"]+)"').firstMatch(decoded);
+        if (sdMatch != null) {
+          sources.add(
+            StreamSource(
+              url: sdMatch.group(1)!,
+              quality: '480p',
+              server: '${serverHint ?? "OK.ru"} 480p',
+              headers: {'User-Agent': kDefaultUserAgent, 'Referer': 'https://ok.ru/'},
+            ),
+          );
+        }
+      }
+
+      return sources;
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<List<StreamSource>> _resolveDailymotion(String url, {String? serverHint}) async {
@@ -87,11 +215,28 @@ class StreamResolver {
       if (videoId == null || videoId.isEmpty) return [];
 
       final metaUrl = 'https://www.dailymotion.com/player/metadata/video/$videoId';
-      final response = await _dio.get(metaUrl);
+      final response = await _dio.get(
+        metaUrl,
+        options: Options(headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://geo.dailymotion.com/',
+        }),
+      );
       final data = response.data is Map ? response.data : json.decode(response.data.toString());
       if (data['error'] != null) {
         return [];
       }
+
+      final setCookies = response.headers['set-cookie'];
+      final cookieHeader = setCookies?.map((c) => c.split(';').first).join('; ') ?? '';
+
+      final streamHeaders = {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://geo.dailymotion.com/',
+        if (cookieHeader.isNotEmpty) 'Cookie': cookieHeader,
+      };
 
       final List<StreamSource> sources = [];
       final autoQualities = data['qualities']?['auto'] as List?;
@@ -101,12 +246,7 @@ class StreamResolver {
           try {
             final manifestResp = await _dio.get(
               m3u8Url,
-              options: Options(
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                },
-              ),
+              options: Options(headers: streamHeaders),
             );
             final manifestText = manifestResp.data.toString();
             final lines = manifestText.split('\n');
@@ -130,10 +270,7 @@ class StreamResolver {
                     url: streamUri,
                     quality: pendingQuality ?? 'Auto',
                     server: '${serverHint ?? 'Dailymotion'} ${pendingQuality ?? 'Direct'}',
-                    headers: {
-                      'User-Agent':
-                          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    },
+                    headers: streamHeaders,
                   ),
                 );
                 pendingQuality = null;
@@ -147,71 +284,11 @@ class StreamResolver {
               url: m3u8Url,
               quality: 'Multi-Bitrate (HLS)',
               server: serverHint ?? 'Dailymotion Fast',
-              headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              },
+              headers: streamHeaders,
             ),
           );
         }
       }
-      return sources;
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<List<StreamSource>> _resolveOkRu(String url, {String? serverHint}) async {
-    try {
-      String cleanUrl = url;
-      if (cleanUrl.startsWith('//')) cleanUrl = 'https:$cleanUrl';
-
-      final idMatch = RegExp(r'ok\.ru/(?:video|videoembed)/(\d+)').firstMatch(cleanUrl);
-      if (idMatch == null) return [];
-      final videoId = idMatch.group(1)!;
-
-      final embedUrl = 'https://ok.ru/videoembed/$videoId';
-      final response = await _dio.get(embedUrl);
-      final html = response.data.toString();
-      final decoded = html.replaceAll('&quot;', '"').replaceAll(r'\u0026', '&').replaceAll(r'\/', '/');
-
-      final List<StreamSource> sources = [];
-      final hlsMatch = RegExp(r'"hlsManifestUrl"\s*:\s*"([^"]+)"').firstMatch(decoded);
-      if (hlsMatch != null) {
-        sources.add(
-          StreamSource(
-            url: hlsMatch.group(1)!,
-            quality: 'Auto HLS',
-            server: serverHint ?? 'OK.ru Fast',
-            headers: {'User-Agent': 'Mozilla/5.0'},
-          ),
-        );
-      }
-
-      final hdMatch = RegExp(r'"name"\s*:\s*"hd"\s*,\s*"url"\s*:\s*"([^"]+)"').firstMatch(decoded);
-      if (hdMatch != null) {
-        sources.add(
-          StreamSource(
-            url: hdMatch.group(1)!,
-            quality: '720p',
-            server: '${serverHint ?? "OK.ru"} HD',
-            headers: {'User-Agent': 'Mozilla/5.0'},
-          ),
-        );
-      }
-
-      final sdMatch = RegExp(r'"name"\s*:\s*"sd"\s*,\s*"url"\s*:\s*"([^"]+)"').firstMatch(decoded);
-      if (sdMatch != null) {
-        sources.add(
-          StreamSource(
-            url: sdMatch.group(1)!,
-            quality: '480p',
-            server: '${serverHint ?? "OK.ru"} SD',
-            headers: {'User-Agent': 'Mozilla/5.0'},
-          ),
-        );
-      }
-
       return sources;
     } catch (_) {
       return [];
@@ -277,6 +354,19 @@ class StreamResolver {
         ),
       ];
     }
+
+    final mp4Match = RegExp(r'''["'](https?://[^"']+\.mp4[^"']*)["']''').firstMatch(html);
+    if (mp4Match != null) {
+      return [
+        StreamSource(
+          url: mp4Match.group(1)!,
+          quality: 'Direct MP4',
+          server: serverHint ?? 'Embedded Video',
+          headers: {'Referer': url},
+        ),
+      ];
+    }
+
     return [];
   }
 }

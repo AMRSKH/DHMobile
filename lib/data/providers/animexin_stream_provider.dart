@@ -157,7 +157,10 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         } catch (_) {}
 
         final iframeMatch = RegExp(r'''src=["']([^"']+)["']''').firstMatch(decoded);
-        final streamUrl = iframeMatch?.group(1) ?? (decoded.startsWith('http') ? decoded : null);
+        String? streamUrl = iframeMatch?.group(1) ?? (decoded.startsWith('http') || decoded.startsWith('//') ? decoded : null);
+        if (streamUrl != null && streamUrl.startsWith('//')) {
+          streamUrl = 'https:$streamUrl';
+        }
 
         if (streamUrl != null && streamUrl.isNotEmpty) {
           rawCandidates.add(
@@ -177,8 +180,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
 
       final iframes = document.querySelectorAll('.player-embed iframe, iframe.player-iframe');
       for (final iframe in iframes) {
-        final src = iframe.attributes['src'] ?? iframe.attributes['data-src'];
+        String? src = iframe.attributes['src'] ?? iframe.attributes['data-src'];
         if (src != null && src.isNotEmpty) {
+          if (src.startsWith('//')) src = 'https:$src';
           rawCandidates.add(
             StreamSource(
               url: src,
@@ -207,24 +211,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       }
     }
 
-    const backupSources = [
-      StreamSource(
-        url: 'https://vjs.zencdn.net/v/oceans.mp4',
-        quality: '720p',
-        server: 'Fast CDN 1 (720p)',
-      ),
-      StreamSource(
-        url: 'https://raw.githubusercontent.com/bower-media-samples/big-buck-bunny-1080p-30s/master/video.mp4',
-        quality: '1080p',
-        server: 'Fast CDN 2 (1080p)',
-      ),
-    ];
-
-    if (resolvedSources.isNotEmpty) {
-      return [...backupSources, ...resolvedSources];
-    }
-
-    return backupSources;
+    return resolvedSources;
   }
 
   List<Show> _getFeaturedShows() {

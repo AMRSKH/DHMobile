@@ -43,7 +43,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // Fallback VideoPlayer
   VideoPlayerController? _vpController;
 
-  bool _useFallbackPlayer = false;
+  // Fallback VideoPlayer (preferred for reliable native Android hardware decode)
+  bool _useFallbackPlayer = true;
   bool _isPlaying = false;
   bool _isBuffering = true;
   Duration _position = Duration.zero;
@@ -193,21 +194,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         controller.addListener(_vlcListener);
       } else {
         // Fallback VideoPlayer
-        final Map<String, String> safeHeaders = {};
-        if (source.headers.containsKey('User-Agent')) {
-          safeHeaders['User-Agent'] = source.headers['User-Agent']!;
-        }
-        if (!source.url.contains('googleapis.com') &&
-            !source.url.contains('mux.dev') &&
-            !source.url.contains('okcdn.ru') &&
-            !source.url.contains('dailymotion.com') &&
-            source.headers.containsKey('Referer')) {
-          safeHeaders['Referer'] = source.headers['Referer']!;
-        }
+        final Map<String, String> httpHeaders = Map<String, String>.from(source.headers);
 
         final vp = VideoPlayerController.networkUrl(
           Uri.parse(source.url),
-          httpHeaders: safeHeaders.isNotEmpty ? safeHeaders : const {},
+          httpHeaders: httpHeaders,
         );
         _vpController = vp;
         await vp.initialize();
