@@ -221,7 +221,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     ];
 
     if (resolvedSources.isNotEmpty) {
-      return [...resolvedSources, ...backupSources];
+      return [...backupSources, ...resolvedSources];
     }
 
     return backupSources;
