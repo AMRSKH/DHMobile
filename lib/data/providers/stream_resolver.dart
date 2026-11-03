@@ -89,12 +89,59 @@ class StreamResolver {
       final metaUrl = 'https://www.dailymotion.com/player/metadata/video/$videoId';
       final response = await _dio.get(metaUrl);
       final data = response.data is Map ? response.data : json.decode(response.data.toString());
+      if (data['error'] != null) {
+        return [];
+      }
 
       final List<StreamSource> sources = [];
       final autoQualities = data['qualities']?['auto'] as List?;
       if (autoQualities != null && autoQualities.isNotEmpty) {
         final m3u8Url = autoQualities.first['url'] as String?;
         if (m3u8Url != null && m3u8Url.isNotEmpty) {
+          try {
+            final manifestResp = await _dio.get(
+              m3u8Url,
+              options: Options(
+                headers: {
+                  'User-Agent':
+                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                },
+              ),
+            );
+            final manifestText = manifestResp.data.toString();
+            final lines = manifestText.split('\n');
+            String? pendingQuality;
+
+            for (var line in lines) {
+              final trimmed = line.trim();
+              if (trimmed.startsWith('#EXT-X-STREAM-INF:')) {
+                final resMatch = RegExp(r'RESOLUTION=(\d+x\d+)').firstMatch(trimmed);
+                if (resMatch != null) {
+                  final res = resMatch.group(1)!;
+                  final height = res.split('x').last;
+                  pendingQuality = '${height}p';
+                } else {
+                  pendingQuality = 'Auto';
+                }
+              } else if (trimmed.isNotEmpty && !trimmed.startsWith('#')) {
+                final streamUri = Uri.parse(m3u8Url).resolve(trimmed).toString();
+                sources.add(
+                  StreamSource(
+                    url: streamUri,
+                    quality: pendingQuality ?? 'Auto',
+                    server: '${serverHint ?? 'Dailymotion'} ${pendingQuality ?? 'Direct'}',
+                    headers: {
+                      'User-Agent':
+                          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                  ),
+                );
+                pendingQuality = null;
+              }
+            }
+          } catch (_) {}
+
+          // Also keep master manifest as fallback
           sources.add(
             StreamSource(
               url: m3u8Url,

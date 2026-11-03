@@ -207,27 +207,24 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       }
     }
 
-    if (resolvedSources.isNotEmpty) {
-      return resolvedSources;
-    }
-
-    return const [
-      StreamSource(
-        url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        quality: 'Auto HLS',
-        server: 'Fast HLS Stream',
-      ),
+    const backupSources = [
       StreamSource(
         url: 'https://vjs.zencdn.net/v/oceans.mp4',
         quality: '720p',
         server: 'Fast CDN 1 (720p)',
       ),
       StreamSource(
-        url: 'https://vjs.zencdn.net/v/oceans.mp4',
+        url: 'https://raw.githubusercontent.com/bower-media-samples/big-buck-bunny-1080p-30s/master/video.mp4',
         quality: '1080p',
         server: 'Fast CDN 2 (1080p)',
       ),
     ];
+
+    if (resolvedSources.isNotEmpty) {
+      return [...resolvedSources, ...backupSources];
+    }
+
+    return backupSources;
   }
 
   List<Show> _getFeaturedShows() {

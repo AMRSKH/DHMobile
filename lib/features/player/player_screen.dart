@@ -131,12 +131,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _saveProgress() {
     if (_position.inSeconds > 2 && _duration.inSeconds > 5) {
+      final isFinished = _position.inSeconds >= (_duration.inSeconds - 3);
+      final pos = isFinished ? 0 : _position.inMilliseconds;
       try {
         final storage = ref.read(storageServiceProvider);
         storage.saveHistory(
           show: widget.show,
           episode: _currentEpisode,
-          positionMs: _position.inMilliseconds,
+          positionMs: pos,
           durationMs: _duration.inMilliseconds,
         );
       } catch (_) {}
@@ -159,6 +161,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() {
       _isBuffering = true;
       _errorMessage = null;
+      _position = Duration.zero;
+      _duration = Duration.zero;
     });
 
     _resetBufferingWatchdog();
@@ -225,6 +229,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _useFallbackPlayer = true;
         });
         _initializeStream(source);
+      } else if (_currentSourceIndex < _availableSources.length - 1) {
+        setState(() {
+          _currentSourceIndex++;
+        });
+        _initializeStream(_availableSources[_currentSourceIndex]);
       } else {
         setState(() {
           _isBuffering = false;
@@ -236,7 +245,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   void _resetBufferingWatchdog() {
     _bufferingWatchdog?.cancel();
-    _bufferingWatchdog = Timer(const Duration(seconds: 4), () {
+    _bufferingWatchdog = Timer(const Duration(seconds: 8), () {
       if (mounted && _isBuffering && !_isPlaying) {
         if (!_useFallbackPlayer) {
           setState(() {
@@ -257,6 +266,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_pendingResumeMs > 3000) {
       final resumeMs = _pendingResumeMs;
       _pendingResumeMs = 0;
+      if (_duration.inSeconds > 5 && resumeMs >= _duration.inMilliseconds - 3000) {
+        return;
+      }
       _seekTo(Duration(milliseconds: resumeMs));
     }
   }
@@ -285,10 +297,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (value.hasError) {
-      setState(() {
-        _useFallbackPlayer = true;
-      });
-      if (_availableSources.isNotEmpty) {
+      if (!_useFallbackPlayer) {
+        setState(() {
+          _useFallbackPlayer = true;
+        });
+        _initializeStream(_availableSources[_currentSourceIndex]);
+      } else if (_currentSourceIndex < _availableSources.length - 1) {
+        setState(() {
+          _currentSourceIndex++;
+        });
         _initializeStream(_availableSources[_currentSourceIndex]);
       }
     } else if (value.isEnded) {
@@ -299,6 +316,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _vpListener() {
     if (_vpController == null || !mounted) return;
     final value = _vpController!.value;
+
+    if (value.hasError) {
+      if (_currentSourceIndex < _availableSources.length - 1) {
+        setState(() {
+          _currentSourceIndex++;
+        });
+        _initializeStream(_availableSources[_currentSourceIndex]);
+      } else {
+        setState(() {
+          _isBuffering = false;
+          _errorMessage = 'Playback failed. Try switching servers.';
+        });
+      }
+      return;
+    }
 
     setState(() {
       _isPlaying = value.isPlaying;
@@ -387,6 +419,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _currentEpisodeIndex++;
         _currentSourceIndex = 0;
         _pendingResumeMs = 0;
+        _position = Duration.zero;
+        _duration = Duration.zero;
       });
       ref.invalidate(episodeStreamsProvider(_currentEpisode.id));
     }
