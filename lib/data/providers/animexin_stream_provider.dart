@@ -6,6 +6,7 @@ import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
 import '../../domain/providers/stream_provider.dart';
 import 'stream_resolver.dart';
+import 'stream_source_filter.dart';
 
 class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
@@ -211,7 +212,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       }
     }
 
-    return resolvedSources;
+    // Only expose sources that actually respond with playable media.
+    if (resolvedSources.isEmpty) return const [];
+    return StreamSourceFilter().filter(resolvedSources);
   }
 
   List<Show> _getFeaturedShows() {
