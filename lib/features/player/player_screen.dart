@@ -33,7 +33,8 @@ class PlayerScreen extends ConsumerStatefulWidget {
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+class _PlayerScreenState extends ConsumerState<PlayerScreen>
+    with WidgetsBindingObserver {
   late int _currentEpisodeIndex;
   int _currentSourceIndex = 0;
   List<StreamSource> _availableSources = [];
@@ -57,10 +58,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Timer? _bufferingWatchdog;
   String? _errorMessage;
   int _pendingResumeMs = 0;
+  bool _endHandled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentEpisodeIndex = widget.initialEpisodeIndex;
     _pendingResumeMs = widget.initialPositionMs ?? 0;
 
@@ -78,7 +81,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   void dispose() {
-    _saveProgress();
+    WidgetsBinding.instance.removeObserver(this);
+    _saveProgress(syncHistory: true);
     _saveProgressTimer?.cancel();
     _hideControlsTimer?.cancel();
     _positionPollTimer?.cancel();
@@ -89,6 +93,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _saveProgress(syncHistory: true);
+      if (_isPlaying) {
+        _vlcController?.pause();
+        _vpController?.pause();
+      }
+    }
   }
 
   void _disposePlayers() {
@@ -130,20 +146,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
   }
 
-  void _saveProgress() {
-    if (_position.inSeconds > 2 && _duration.inSeconds > 5) {
-      final isFinished = _position.inSeconds >= (_duration.inSeconds - 3);
-      final pos = isFinished ? 0 : _position.inMilliseconds;
-      try {
-        final storage = ref.read(storageServiceProvider);
-        storage.saveHistory(
-          show: widget.show,
-          episode: _currentEpisode,
-          positionMs: pos,
-          durationMs: _duration.inMilliseconds,
-        );
-      } catch (_) {}
-    }
+  Future<void> _saveProgress({bool syncHistory = false}) async {
+    if (_position.inSeconds <= 2 || _duration.inSeconds <= 5) return;
+
+    final isFinished = _position.inSeconds >= (_duration.inSeconds - 3);
+    final pos = isFinished ? 0 : _position.inMilliseconds;
+    final show = widget.show;
+    final episode = _currentEpisode;
+    final durationMs = _duration.inMilliseconds;
+
+    try {
+      if (syncHistory) {
+        await ref
+            .read(historyProvider.notifier)
+            .saveProgress(
+              show: show,
+              episode: episode,
+              positionMs: pos,
+              durationMs: durationMs,
+            );
+      } else {
+        await ref
+            .read(storageServiceProvider)
+            .saveHistory(
+              show: show,
+              episode: episode,
+              positionMs: pos,
+              durationMs: durationMs,
+            );
+      }
+    } catch (_) {}
   }
 
   void _toggleControls() {
@@ -158,12 +190,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Episode get _currentEpisode => widget.episodes[_currentEpisodeIndex];
 
   Future<void> _initializeStream(StreamSource source) async {
+    if (!mounted) return;
     _disposePlayers();
     setState(() {
       _isBuffering = true;
       _errorMessage = null;
       _position = Duration.zero;
       _duration = Duration.zero;
+      _endHandled = false;
     });
 
     _resetBufferingWatchdog();
@@ -194,7 +228,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         controller.addListener(_vlcListener);
       } else {
         // Fallback VideoPlayer
-        final Map<String, String> httpHeaders = Map<String, String>.from(source.headers);
+        final Map<String, String> httpHeaders = Map<String, String>.from(
+          source.headers,
+        );
 
         final vp = VideoPlayerController.networkUrl(
           Uri.parse(source.url),
@@ -202,6 +238,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         );
         _vpController = vp;
         await vp.initialize();
+        if (!mounted) return;
         vp.addListener(_vpListener);
         await vp.play();
         if (mounted) {
@@ -215,6 +252,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         }
       }
     } catch (e) {
+      if (!mounted) return;
       if (!_useFallbackPlayer) {
         setState(() {
           _useFallbackPlayer = true;
@@ -237,18 +275,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _resetBufferingWatchdog() {
     _bufferingWatchdog?.cancel();
     _bufferingWatchdog = Timer(const Duration(seconds: 8), () {
-      if (mounted && _isBuffering && !_isPlaying) {
-        if (!_useFallbackPlayer) {
-          setState(() {
-            _useFallbackPlayer = true;
-          });
-          _initializeStream(_availableSources[_currentSourceIndex]);
-        } else if (_currentSourceIndex < _availableSources.length - 1) {
-          setState(() {
-            _currentSourceIndex++;
-          });
-          _initializeStream(_availableSources[_currentSourceIndex]);
-        }
+      if (!mounted || !_isBuffering || _isPlaying) return;
+      if (_availableSources.isEmpty) return;
+      if (!_useFallbackPlayer) {
+        setState(() {
+          _useFallbackPlayer = true;
+        });
+        _initializeStream(_availableSources[_currentSourceIndex]);
+      } else if (_currentSourceIndex < _availableSources.length - 1) {
+        setState(() {
+          _currentSourceIndex++;
+        });
+        _initializeStream(_availableSources[_currentSourceIndex]);
       }
     });
   }
@@ -257,7 +295,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_pendingResumeMs > 3000) {
       final resumeMs = _pendingResumeMs;
       _pendingResumeMs = 0;
-      if (_duration.inSeconds > 5 && resumeMs >= _duration.inMilliseconds - 3000) {
+      if (_duration.inSeconds > 5 &&
+          resumeMs >= _duration.inMilliseconds - 3000) {
         return;
       }
       _seekTo(Duration(milliseconds: resumeMs));
@@ -288,6 +327,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
 
     if (value.hasError) {
+      if (_availableSources.isEmpty) return;
       if (!_useFallbackPlayer) {
         setState(() {
           _useFallbackPlayer = true;
@@ -299,7 +339,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         });
         _initializeStream(_availableSources[_currentSourceIndex]);
       }
-    } else if (value.isEnded) {
+    } else if (value.isEnded && !_endHandled) {
+      _endHandled = true;
       _handleNextEpisode();
     }
   }
@@ -309,6 +350,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final value = _vpController!.value;
 
     if (value.hasError) {
+      if (_availableSources.isEmpty) return;
       if (_currentSourceIndex < _availableSources.length - 1) {
         setState(() {
           _currentSourceIndex++;
@@ -334,15 +376,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       _bufferingWatchdog?.cancel();
     }
 
-    if (value.position >= value.duration && value.duration > Duration.zero) {
+    if (!_endHandled &&
+        value.duration > Duration.zero &&
+        value.position >= value.duration) {
+      _endHandled = true;
       _handleNextEpisode();
     }
   }
 
   void _startPositionPolling() {
     _positionPollTimer?.cancel();
-    _positionPollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      if (_vlcController != null && mounted && _vlcController!.value.isInitialized) {
+    _positionPollTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (_vlcController != null &&
+          mounted &&
+          _vlcController!.value.isInitialized) {
         try {
           final pos = await _vlcController!.getPosition();
           final dur = await _vlcController!.getDuration();
@@ -377,14 +424,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (_vlcController != null) {
       if (_isPlaying) {
         _vlcController!.pause();
-        _saveProgress();
+        _saveProgress(syncHistory: true);
       } else {
         _vlcController!.play();
       }
     } else if (_vpController != null) {
       if (_isPlaying) {
         _vpController!.pause();
-        _saveProgress();
+        _saveProgress(syncHistory: true);
       } else {
         _vpController!.play();
       }
@@ -404,7 +451,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _handleNextEpisode() {
-    _saveProgress();
+    _saveProgress(syncHistory: true);
     if (_currentEpisodeIndex < widget.episodes.length - 1) {
       setState(() {
         _currentEpisodeIndex++;
@@ -422,7 +469,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final preferredQuality = settings.defaultQuality.toLowerCase();
     if (preferredQuality == 'auto') return 0;
 
-    final matchIndex = sources.indexWhere((s) => s.quality.toLowerCase().contains(preferredQuality));
+    final matchIndex = sources.indexWhere(
+      (s) => s.quality.toLowerCase().contains(preferredQuality),
+    );
     return matchIndex >= 0 ? matchIndex : 0;
   }
 
@@ -450,12 +499,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 12),
-              Text('Error: $err', style: const TextStyle(color: Colors.white70)),
+              Text(
+                'Error: $err',
+                style: const TextStyle(color: Colors.white70),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.invalidate(episodeStreamsProvider(_currentEpisode.id)),
+                onPressed: () =>
+                    ref.invalidate(episodeStreamsProvider(_currentEpisode.id)),
                 child: const Text('Retry'),
               ),
             ],
@@ -477,7 +534,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('No active streams available.', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'No active streams available.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -503,12 +563,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           aspectRatio: 16 / 9,
                           placeholder: Container(color: Colors.black),
                         )
-                      : (_vpController != null && _vpController!.value.isInitialized)
-                          ? AspectRatio(
-                              aspectRatio: _vpController!.value.aspectRatio,
-                              child: VideoPlayer(_vpController!),
-                            )
-                          : Container(color: Colors.black),
+                      : (_vpController != null &&
+                            _vpController!.value.isInitialized)
+                      ? AspectRatio(
+                          aspectRatio: _vpController!.value.aspectRatio,
+                          child: VideoPlayer(_vpController!),
+                        )
+                      : Container(color: Colors.black),
                 ),
 
                 // Single Buffering Indicator when controls are hidden
@@ -531,13 +592,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.warning_amber_rounded, size: 40, color: Colors.amber),
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 40,
+                            color: Colors.amber,
+                          ),
                           const SizedBox(height: 8),
-                          Text(_errorMessage!, style: const TextStyle(color: Colors.white)),
+                          Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.white),
+                          ),
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: () {
-                              _initializeStream(_availableSources[_currentSourceIndex]);
+                              _initializeStream(
+                                _availableSources[_currentSourceIndex],
+                              );
                             },
                             child: const Text('Retry Stream'),
                           ),
@@ -558,7 +628,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     speed: _speed,
                     sources: _availableSources,
                     currentSourceIndex: _currentSourceIndex,
-                    hasNextEpisode: _currentEpisodeIndex < widget.episodes.length - 1,
+                    hasNextEpisode:
+                        _currentEpisodeIndex < widget.episodes.length - 1,
                     onPlayPause: _togglePlayPause,
                     onSeek: _seekTo,
                     onSeekBack10: () => _seekRelative(-10),

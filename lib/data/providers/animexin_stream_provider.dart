@@ -12,21 +12,22 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
 
   AnimeXinStreamProvider({Dio? dio})
-      : _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: 'https://animexin.dev',
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 15),
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                  'Referer': 'https://animexin.dev/',
-                  'Accept':
-                      'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                },
-              ),
-            );
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: 'https://animexin.dev',
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
+              headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                'Referer': 'https://animexin.dev/',
+                'Accept':
+                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              },
+            ),
+          );
 
   @override
   String get id => 'animexin';
@@ -40,13 +41,12 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     if (cleanQuery.isEmpty) return _getFeaturedShows();
 
     try {
-      final response = await _dio.get(
-        '/',
-        queryParameters: {'s': cleanQuery},
-      );
+      final response = await _dio.get('/', queryParameters: {'s': cleanQuery});
 
       final document = html_parser.parse(response.data);
-      final articles = document.querySelectorAll('article.bs, .listupd article, .bsx');
+      final articles = document.querySelectorAll(
+        'article.bs, .listupd article, .bsx',
+      );
 
       final List<Show> results = [];
       for (final article in articles) {
@@ -56,10 +56,10 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         final epEl = article.querySelector('.epx, .bt .ep');
 
         final url = linkEl?.attributes['href'] ?? '';
-        final title = titleEl?.text.trim() ?? linkEl?.attributes['title']?.trim() ?? '';
-        final poster = imgEl?.attributes['data-src'] ??
-            imgEl?.attributes['src'] ??
-            '';
+        final title =
+            titleEl?.text.trim() ?? linkEl?.attributes['title']?.trim() ?? '';
+        final poster =
+            imgEl?.attributes['data-src'] ?? imgEl?.attributes['src'] ?? '';
         final epCount = epEl?.text.trim();
 
         if (url.isNotEmpty && title.isNotEmpty) {
@@ -89,7 +89,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       final response = await _dio.get(showId);
       final document = html_parser.parse(response.data);
 
-      final items = document.querySelectorAll('.eplister ul li, .episodelist ul li');
+      final items = document.querySelectorAll(
+        '.eplister ul li, .episodelist ul li',
+      );
       final List<Episode> episodeList = [];
 
       for (int i = 0; i < items.length; i++) {
@@ -102,7 +104,8 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         final epUrl = a?.attributes['href'] ?? '';
         final epNumStr = numEl?.text.trim() ?? '${items.length - i}';
         final epTitle = titleEl?.text.trim() ?? 'Episode $epNumStr';
-        final epNum = double.tryParse(epNumStr.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        final epNum =
+            double.tryParse(epNumStr.replaceAll(RegExp(r'[^0-9.]'), '')) ??
             (items.length - i).toDouble();
 
         if (epUrl.isNotEmpty) {
@@ -124,15 +127,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       }
     } catch (_) {}
 
-    return List.generate(
-      12,
-      (index) => Episode(
-        id: '$showId-ep-${index + 1}',
-        number: (index + 1).toDouble(),
-        title: 'Episode ${index + 1}',
-        showId: showId,
-      ),
-    );
+    // Do not invent episodes when scraping fails: fake IDs cannot be played
+    // and would send the user into a dead player screen.
+    return const [];
   }
 
   @override
@@ -144,7 +141,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
       final response = await _dio.get(episodeId);
       final document = html_parser.parse(response.data);
 
-      final options = document.querySelectorAll('select.mirror option, .mirror select option');
+      final options = document.querySelectorAll(
+        'select.mirror option, .mirror select option',
+      );
       for (final opt in options) {
         final rawVal = opt.attributes['value'] ?? '';
         final serverName = opt.text.trim();
@@ -157,8 +156,14 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
           }
         } catch (_) {}
 
-        final iframeMatch = RegExp(r'''src=["']([^"']+)["']''').firstMatch(decoded);
-        String? streamUrl = iframeMatch?.group(1) ?? (decoded.startsWith('http') || decoded.startsWith('//') ? decoded : null);
+        final iframeMatch = RegExp(
+          r'''src=["']([^"']+)["']''',
+        ).firstMatch(decoded);
+        String? streamUrl =
+            iframeMatch?.group(1) ??
+            (decoded.startsWith('http') || decoded.startsWith('//')
+                ? decoded
+                : null);
         if (streamUrl != null && streamUrl.startsWith('//')) {
           streamUrl = 'https:$streamUrl';
         }
@@ -179,7 +184,9 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         }
       }
 
-      final iframes = document.querySelectorAll('.player-embed iframe, iframe.player-iframe');
+      final iframes = document.querySelectorAll(
+        '.player-embed iframe, iframe.player-iframe',
+      );
       for (final iframe in iframes) {
         String? src = iframe.attributes['src'] ?? iframe.attributes['data-src'];
         if (src != null && src.isNotEmpty) {
@@ -203,9 +210,11 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     final List<StreamSource> resolvedSources = [];
     if (rawCandidates.isNotEmpty) {
       final results = await Future.wait(
-        rawCandidates.map((c) => resolver
-            .resolve(c.url, serverHint: c.server, referer: episodeId)
-            .catchError((_) => <StreamSource>[])),
+        rawCandidates.map(
+          (c) => resolver
+              .resolve(c.url, serverHint: c.server, referer: episodeId)
+              .catchError((_) => <StreamSource>[]),
+        ),
       );
       for (final list in results) {
         resolvedSources.addAll(list);
@@ -237,7 +246,8 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
             'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6J_g-zO8p7PzT0h149UqjP47NsmqM139G6g&s',
         episodeCount: 'EP 82',
         genres: ['Action', 'Martial Arts'],
-        synopsis: 'A million years after Tang San, a new legend begins on the Douluo Continent.',
+        synopsis:
+            'A million years after Tang San, a new legend begins on the Douluo Continent.',
         providerId: 'animexin',
       ),
       Show(
@@ -247,7 +257,8 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
             'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTG-oP8L-1J-V-97i-n4o6aXzY5_l-x34G0eQ&s',
         episodeCount: 'EP 68',
         genres: ['Cultivation', 'Revenge'],
-        synopsis: 'Wang Lin journeys through a brutal cultivation world toward immortality.',
+        synopsis:
+            'Wang Lin journeys through a brutal cultivation world toward immortality.',
         providerId: 'animexin',
       ),
       Show(
@@ -257,7 +268,8 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
             'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6f77iG8rF9q5K2L9x1n-5uO-k0rT7eQ9a6A&s',
         episodeCount: 'EP 185',
         genres: ['Fantasy', 'Adventure'],
-        synopsis: 'Shi Hao grows to become a divine champion in a mythical universe.',
+        synopsis:
+            'Shi Hao grows to become a divine champion in a mythical universe.',
         providerId: 'animexin',
       ),
     ];

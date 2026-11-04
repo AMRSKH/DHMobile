@@ -1,0 +1,68 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Format files after write/edit/patch. The built-in Dart formatter runs on .dart files.
+  "formatter": true,
+
+  "permissions": [
+    // Default: ask before running shell commands.
+    { "action": "shell", "resource": "*", "effect": "ask" },
+
+    // Tests, analysis, and formatting are allowed.
+    { "action": "shell", "resource": "flutter test *", "effect": "allow" },
+    { "action": "shell", "resource": "flutter analyze *", "effect": "allow" },
+    { "action": "shell", "resource": "dart test *", "effect": "allow" },
+    { "action": "shell", "resource": "dart format *", "effect": "allow" },
+    { "action": "shell", "resource": "flutter --version *", "effect": "allow" },
+    { "action": "shell", "resource": "dart --version *", "effect": "allow" },
+
+    // Read-only git inspection is allowed.
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git show *", "effect": "allow" },
+
+    // Always ask before pushing.
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+
+    // Always ask before installing or updating packages.
+    { "action": "shell", "resource": "flutter pub get", "effect": "ask" },
+    { "action": "shell", "resource": "flutter pub add *", "effect": "ask" },
+    { "action": "shell", "resource": "flutter pub upgrade *", "effect": "ask" },
+    { "action": "shell", "resource": "dart pub get", "effect": "ask" },
+    { "action": "shell", "resource": "dart pub add *", "effect": "ask" },
+    { "action": "shell", "resource": "dart pub upgrade *", "effect": "ask" },
+    { "action": "shell", "resource": "npm install *", "effect": "ask" },
+    { "action": "shell", "resource": "npm i *", "effect": "ask" },
+    { "action": "shell", "resource": "pnpm add *", "effect": "ask" },
+    { "action": "shell", "resource": "yarn add *", "effect": "ask" },
+    { "action": "shell", "resource": "pip install *", "effect": "ask" },
+
+    // Never read or edit secrets.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.pem", "effect": "deny" },
+    { "action": "read", "resource": "*.key", "effect": "deny" },
+    { "action": "read", "resource": "*.p12", "effect": "deny" },
+    { "action": "read", "resource": "*.pfx", "effect": "deny" },
+    { "action": "read", "resource": "*.jks", "effect": "deny" },
+    { "action": "read", "resource": "*.keystore", "effect": "deny" },
+    { "action": "read", "resource": "*id_rsa*", "effect": "deny" },
+    { "action": "read", "resource": "*id_ed25519*", "effect": "deny" },
+    { "action": "read", "resource": "*/secrets/*", "effect": "deny" },
+    { "action": "read", "resource": "*/credentials*", "effect": "deny" },
+    { "action": "read", "resource": "android/key.properties", "effect": "deny" },
+
+    { "action": "edit", "resource": "*.env", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.*", "effect": "deny" },
+    { "action": "edit", "resource": "*.pem", "effect": "deny" },
+    { "action": "edit", "resource": "*.key", "effect": "deny" },
+    { "action": "edit", "resource": "*.p12", "effect": "deny" },
+    { "action": "edit", "resource": "*.pfx", "effect": "deny" },
+    { "action": "edit", "resource": "*.jks", "effect": "deny" },
+    { "action": "edit", "resource": "*.keystore", "effect": "deny" },
+    { "action": "edit", "resource": "*/secrets/*", "effect": "deny" },
+    { "action": "edit", "resource": "android/key.properties", "effect": "deny" }
+  ]
+}

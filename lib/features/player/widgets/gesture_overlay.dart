@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
 class GestureOverlay extends StatefulWidget {
@@ -20,46 +22,86 @@ class GestureOverlay extends StatefulWidget {
 }
 
 class _GestureOverlayState extends State<GestureOverlay> {
+  static const MethodChannel _volumeChannel = MethodChannel(
+    'dev.amscenter.donghua_player/volume',
+  );
+
   final ScreenBrightness _screenBrightness = ScreenBrightness();
   double _currentBrightness = 0.5;
   double _currentVolume = 0.5;
   String? _indicatorText;
   IconData? _indicatorIcon;
   bool _showIndicator = false;
+  Timer? _indicatorTimer;
 
   @override
   void initState() {
     super.initState();
     _initBrightness();
+    _initVolume();
+  }
+
+  @override
+  void dispose() {
+    _indicatorTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _initBrightness() async {
     try {
-      _currentBrightness = await _screenBrightness.application;
+      final value = await _screenBrightness.application;
+      if (mounted) {
+        setState(() {
+          _currentBrightness = value;
+        });
+      }
     } catch (_) {}
+  }
+
+  Future<void> _initVolume() async {
+    try {
+      final value = await _volumeChannel.invokeMethod<double>('getVolume');
+      if (value != null && mounted) {
+        setState(() {
+          _currentVolume = value;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _setVolume(double value) {
+    _volumeChannel
+        .invokeMethod<double>('setVolume', {'value': value})
+        .catchError((_) => null);
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details, double screenWidth) {
     final isLeft = details.globalPosition.dx < screenWidth / 2;
-    final delta = -details.primaryDelta! / 200.0;
+    final delta = -(details.primaryDelta ?? 0) / 200.0;
 
     setState(() {
       _showIndicator = true;
       if (isLeft) {
         _currentBrightness = (_currentBrightness + delta).clamp(0.0, 1.0);
-        _screenBrightness.setApplicationScreenBrightness(_currentBrightness);
+        unawaited(
+          _screenBrightness.setApplicationScreenBrightness(_currentBrightness),
+        );
         _indicatorIcon = Icons.brightness_6;
         _indicatorText = '${(_currentBrightness * 100).round()}%';
       } else {
         _currentVolume = (_currentVolume + delta).clamp(0.0, 1.0);
-        _indicatorIcon = _currentVolume == 0 ? Icons.volume_off : Icons.volume_up;
+        _setVolume(_currentVolume);
+        _indicatorIcon = _currentVolume == 0
+            ? Icons.volume_off
+            : Icons.volume_up;
         _indicatorText = '${(_currentVolume * 100).round()}%';
       }
     });
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
-    Future.delayed(const Duration(milliseconds: 800), () {
+    _indicatorTimer?.cancel();
+    _indicatorTimer = Timer(const Duration(milliseconds: 800), () {
       if (mounted) {
         setState(() {
           _showIndicator = false;
@@ -74,7 +116,8 @@ class _GestureOverlayState extends State<GestureOverlay> {
 
     return Stack(
       children: [
-        widget.child,
+        // Keep the gesture layer below the player UI so buttons and sliders
+        // receive taps before the full-screen tap handler.
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
@@ -86,10 +129,12 @@ class _GestureOverlayState extends State<GestureOverlay> {
                 widget.onDoubleTapRight();
               }
             },
-            onVerticalDragUpdate: (details) => _onVerticalDragUpdate(details, size.width),
+            onVerticalDragUpdate: (details) =>
+                _onVerticalDragUpdate(details, size.width),
             onVerticalDragEnd: _onVerticalDragEnd,
           ),
         ),
+        widget.child,
         if (_showIndicator)
           Center(
             child: Container(

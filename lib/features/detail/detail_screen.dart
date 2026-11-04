@@ -10,13 +10,10 @@ import 'detail_controller.dart';
 
 class DetailScreen extends ConsumerStatefulWidget {
   final Show show;
-  final void Function(Episode episode, List<Episode> allEpisodes)? onEpisodeSelected;
+  final void Function(Episode episode, List<Episode> allEpisodes)?
+  onEpisodeSelected;
 
-  const DetailScreen({
-    super.key,
-    required this.show,
-    this.onEpisodeSelected,
-  });
+  const DetailScreen({super.key, required this.show, this.onEpisodeSelected});
 
   @override
   ConsumerState<DetailScreen> createState() => _DetailScreenState();
@@ -39,7 +36,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     final favorites = ref.watch(favoritesProvider);
     final isFav = favorites.any((s) => s.id == widget.show.id);
     final history = ref.watch(historyProvider);
-    final lastWatched = history.where((h) => h.show.id == widget.show.id).firstOrNull;
+    final lastWatched = history
+        .where((h) => h.show.id == widget.show.id)
+        .firstOrNull;
+    final historyByEpisode = {
+      for (final item in history) item.episode.id: item,
+    };
 
     return Scaffold(
       body: CustomScrollView(
@@ -50,12 +52,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             actions: [
               IconButton(
                 icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  isFav
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                   color: isFav ? AppTheme.primaryRed : Colors.white,
                 ),
                 tooltip: isFav ? 'Remove Favorite' : 'Add to Favorites',
                 onPressed: () {
-                  ref.read(favoritesProvider.notifier).toggleFavorite(widget.show);
+                  ref
+                      .read(favoritesProvider.notifier)
+                      .toggleFavorite(widget.show);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       duration: const Duration(seconds: 1),
@@ -75,7 +81,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     CachedNetworkImage(
                       imageUrl: widget.show.poster,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => Container(color: const Color(0xFF181A20)),
+                      errorWidget: (_, _, _) =>
+                          Container(color: const Color(0xFF181A20)),
                     )
                   else
                     Container(color: const Color(0xFF181A20)),
@@ -121,7 +128,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                           color: AppTheme.primaryRed,
                         ),
                       ...widget.show.genres.map(
-                        (g) => _TagBadge(label: g, color: const Color(0xFF262A34)),
+                        (g) =>
+                            _TagBadge(label: g, color: const Color(0xFF262A34)),
                       ),
                     ],
                   ),
@@ -132,8 +140,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       if (episodes.isEmpty) return const SizedBox.shrink();
 
                       if (lastWatched != null) {
-                        final epIndex = episodes.indexWhere((e) => e.id == lastWatched.episode.id);
-                        final targetEp = epIndex >= 0 ? episodes[epIndex] : episodes.first;
+                        final epIndex = episodes.indexWhere(
+                          (e) => e.id == lastWatched.episode.id,
+                        );
+                        final targetEp = epIndex >= 0
+                            ? episodes[epIndex]
+                            : episodes.first;
                         final targetIndex = epIndex >= 0 ? epIndex : 0;
                         final epNumStr = targetEp.number % 1 == 0
                             ? targetEp.number.toInt().toString()
@@ -150,7 +162,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            icon: const Icon(Icons.play_circle_fill_rounded, size: 28),
+                            icon: const Icon(
+                              Icons.play_circle_fill_rounded,
+                              size: 28,
+                            ),
                             label: Text(
                               'Continue Ep $epNumStr (${_formatTime(lastWatched.positionMs)})',
                               style: const TextStyle(
@@ -159,7 +174,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                               ),
                             ),
                             onPressed: () {
-                              _handleEpisodeTap(targetEp, episodes, initialPositionMs: lastWatched.positionMs, index: targetIndex);
+                              _handleEpisodeTap(
+                                targetEp,
+                                episodes,
+                                initialPositionMs: lastWatched.positionMs,
+                                index: targetIndex,
+                              );
                             },
                           ),
                         );
@@ -193,7 +213,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     orElse: () => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 16),
-                  if (widget.show.synopsis != null && widget.show.synopsis!.isNotEmpty) ...[
+                  if (widget.show.synopsis != null &&
+                      widget.show.synopsis!.isNotEmpty) ...[
                     const Text(
                       'Synopsis',
                       style: TextStyle(
@@ -212,7 +233,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       child: Text(
                         widget.show.synopsis!,
                         maxLines: _isSynopsisExpanded ? null : 3,
-                        overflow: _isSynopsisExpanded ? null : TextOverflow.ellipsis,
+                        overflow: _isSynopsisExpanded
+                            ? null
+                            : TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFFB0B3B8),
                           fontSize: 14,
@@ -248,7 +271,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                           _isGridView ? Icons.view_list : Icons.grid_view,
                           color: Colors.white70,
                         ),
-                        tooltip: _isGridView ? 'Switch to List' : 'Switch to Grid',
+                        tooltip: _isGridView
+                            ? 'Switch to List'
+                            : 'Switch to Grid',
                         onPressed: () {
                           setState(() {
                             _isGridView = !_isGridView;
@@ -274,7 +299,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 40,
+                        color: Colors.redAccent,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'Failed to load episodes: $err',
@@ -308,117 +337,141 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
               if (_isGridView) {
                 return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 1.6,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final ep = episodes[index];
-                        final epLabel = ep.number > 0
-                            ? 'EP ${ep.number.toInt()}'
-                            : 'EP ${index + 1}';
-                        final histItem = history.where((h) => h.episode.id == ep.id).firstOrNull;
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          childAspectRatio: 1.6,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final ep = episodes[index];
+                      final epLabel = ep.number > 0
+                          ? 'EP ${ep.number.toInt()}'
+                          : 'EP ${index + 1}';
+                      final histItem = historyByEpisode[ep.id];
 
-                        return InkWell(
-                          onTap: () => _handleEpisodeTap(ep, episodes, initialPositionMs: histItem?.positionMs, index: index),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: histItem != null ? const Color(0xFF232732) : const Color(0xFF1C1F26),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: histItem != null ? AppTheme.primaryRed.withValues(alpha: 0.5) : const Color(0xFF2A2E39),
-                              ),
+                      return InkWell(
+                        onTap: () => _handleEpisodeTap(
+                          ep,
+                          episodes,
+                          initialPositionMs: histItem?.positionMs,
+                          index: index,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: histItem != null
+                                ? const Color(0xFF232732)
+                                : const Color(0xFF1C1F26),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: histItem != null
+                                  ? AppTheme.primaryRed.withValues(alpha: 0.5)
+                                  : const Color(0xFF2A2E39),
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      epLabel,
-                                      style: TextStyle(
-                                        color: histItem != null ? Colors.white : Colors.white70,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    epLabel,
+                                    style: TextStyle(
+                                      color: histItem != null
+                                          ? Colors.white
+                                          : Colors.white70,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
-                                if (histItem != null)
-                                  LinearProgressIndicator(
-                                    value: histItem.progressPercentage,
-                                    backgroundColor: Colors.white10,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
-                                    minHeight: 2,
-                                  ),
-                              ],
-                            ),
+                              ),
+                              if (histItem != null)
+                                LinearProgressIndicator(
+                                  value: histItem.progressPercentage,
+                                  backgroundColor: Colors.white10,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        AppTheme.primaryRed,
+                                      ),
+                                  minHeight: 2,
+                                ),
+                            ],
                           ),
-                        );
-                      },
-                      childCount: episodes.length,
-                    ),
+                        ),
+                      );
+                    }, childCount: episodes.length),
                   ),
                 );
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final ep = episodes[index];
-                      final histItem = history.where((h) => h.episode.id == ep.id).firstOrNull;
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final ep = episodes[index];
+                    final histItem = historyByEpisode[ep.id];
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1C1F26),
-                          borderRadius: BorderRadius.circular(10),
-                          border: histItem != null
-                              ? Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3))
-                              : null,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF262A34),
-                                  borderRadius: BorderRadius.circular(8),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1F26),
+                        borderRadius: BorderRadius.circular(10),
+                        border: histItem != null
+                            ? Border.all(
+                                color: AppTheme.primaryRed.withValues(
+                                  alpha: 0.3,
                                 ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '${ep.number.toInt()}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                              )
+                            : null,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF262A34),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              title: Text(
-                                ep.title,
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${ep.number.toInt()}',
                                 style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              subtitle: histItem != null
-                                  ? Text(
-                                      'Watched ${_formatTime(histItem.positionMs)} / ${_formatTime(histItem.durationMs)}',
-                                      style: const TextStyle(color: AppTheme.primaryRed, fontSize: 12),
-                                    )
-                                  : (ep.uploadDate != null
+                            ),
+                            title: Text(
+                              ep.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: histItem != null
+                                ? Text(
+                                    'Watched ${_formatTime(histItem.positionMs)} / ${_formatTime(histItem.durationMs)}',
+                                    style: const TextStyle(
+                                      color: AppTheme.primaryRed,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : (ep.uploadDate != null
                                       ? Text(
                                           ep.uploadDate!,
                                           style: const TextStyle(
@@ -427,25 +480,32 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                                           ),
                                         )
                                       : null),
-                              trailing: Icon(
-                                histItem != null ? Icons.play_circle_fill_rounded : Icons.play_circle_outline,
-                                color: AppTheme.primaryRed,
-                              ),
-                              onTap: () => _handleEpisodeTap(ep, episodes, initialPositionMs: histItem?.positionMs, index: index),
+                            trailing: Icon(
+                              histItem != null
+                                  ? Icons.play_circle_fill_rounded
+                                  : Icons.play_circle_outline,
+                              color: AppTheme.primaryRed,
                             ),
-                            if (histItem != null)
-                              LinearProgressIndicator(
-                                value: histItem.progressPercentage,
-                                backgroundColor: Colors.white10,
-                                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
-                                minHeight: 2,
+                            onTap: () => _handleEpisodeTap(
+                              ep,
+                              episodes,
+                              initialPositionMs: histItem?.positionMs,
+                              index: index,
+                            ),
+                          ),
+                          if (histItem != null)
+                            LinearProgressIndicator(
+                              value: histItem.progressPercentage,
+                              backgroundColor: Colors.white10,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                AppTheme.primaryRed,
                               ),
-                          ],
-                        ),
-                      );
-                    },
-                    childCount: episodes.length,
-                  ),
+                              minHeight: 2,
+                            ),
+                        ],
+                      ),
+                    );
+                  }, childCount: episodes.length),
                 ),
               );
             },
@@ -456,7 +516,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     );
   }
 
-  void _handleEpisodeTap(Episode episode, List<Episode> allEpisodes, {int? initialPositionMs, int? index}) {
+  void _handleEpisodeTap(
+    Episode episode,
+    List<Episode> allEpisodes, {
+    int? initialPositionMs,
+    int? index,
+  }) {
     if (widget.onEpisodeSelected != null) {
       widget.onEpisodeSelected!(episode, allEpisodes);
     } else {

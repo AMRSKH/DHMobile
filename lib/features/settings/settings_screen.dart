@@ -13,9 +13,7 @@ class SettingsScreen extends ConsumerWidget {
     final settingsNotifier = ref.read(settingsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
@@ -24,8 +22,15 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.hd_outlined, color: AppTheme.primaryRed),
             title: const Text('Default Stream Quality'),
-            subtitle: Text(settings.defaultQuality, style: const TextStyle(color: AppTheme.textMuted)),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textMuted),
+            subtitle: Text(
+              settings.defaultQuality,
+              style: const TextStyle(color: AppTheme.textMuted),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: AppTheme.textMuted,
+            ),
             onTap: () async {
               final chosen = await showDialog<String>(
                 context: context,
@@ -39,12 +44,23 @@ class SettingsScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                            color: selected ? AppTheme.primaryRed : AppTheme.textMuted,
+                            selected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: selected
+                                ? AppTheme.primaryRed
+                                : AppTheme.textMuted,
                             size: 18,
                           ),
                           const SizedBox(width: 12),
-                          Text(q, style: TextStyle(color: selected ? Colors.white : AppTheme.textMuted)),
+                          Text(
+                            q,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.textMuted,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -58,10 +74,20 @@ class SettingsScreen extends ConsumerWidget {
           ),
           // Subtitles
           ListTile(
-            leading: const Icon(Icons.subtitles_outlined, color: AppTheme.primaryRed),
+            leading: const Icon(
+              Icons.subtitles_outlined,
+              color: AppTheme.primaryRed,
+            ),
             title: const Text('Preferred Subtitle Language'),
-            subtitle: Text(settings.preferredSubtitle, style: const TextStyle(color: AppTheme.textMuted)),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textMuted),
+            subtitle: Text(
+              settings.preferredSubtitle,
+              style: const TextStyle(color: AppTheme.textMuted),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: AppTheme.textMuted,
+            ),
             onTap: () async {
               final chosen = await showDialog<String>(
                 context: context,
@@ -75,12 +101,23 @@ class SettingsScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            selected ? Icons.radio_button_checked : Icons.radio_button_off,
-                            color: selected ? AppTheme.primaryRed : AppTheme.textMuted,
+                            selected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: selected
+                                ? AppTheme.primaryRed
+                                : AppTheme.textMuted,
                             size: 18,
                           ),
                           const SizedBox(width: 12),
-                          Text(s, style: TextStyle(color: selected ? Colors.white : AppTheme.textMuted)),
+                          Text(
+                            s,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.textMuted,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -93,25 +130,43 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
 
-          const Divider(height: 32, indent: 16, endIndent: 16, color: Colors.white12),
+          const Divider(
+            height: 32,
+            indent: 16,
+            endIndent: 16,
+            color: Colors.white12,
+          ),
           const _SectionHeader(title: 'DATA & STORAGE'),
 
           // Clear history
           ListTile(
-            leading: const Icon(Icons.delete_sweep_outlined, color: Colors.amber),
+            leading: const Icon(
+              Icons.delete_sweep_outlined,
+              color: Colors.amber,
+            ),
             title: const Text('Clear Watch History'),
-            subtitle: const Text('Remove all watched progress and history entries', style: TextStyle(color: AppTheme.textMuted)),
+            subtitle: const Text(
+              'Remove all watched progress and history entries',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: AppTheme.surfaceDark,
                   title: const Text('Clear History?'),
-                  content: const Text('This will erase all recorded watch progress.'),
+                  content: const Text(
+                    'This will erase all recorded watch progress.',
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
                     FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                      ),
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('Clear'),
                     ),
@@ -131,20 +186,33 @@ class SettingsScreen extends ConsumerWidget {
 
           // Clear favorites
           ListTile(
-            leading: const Icon(Icons.heart_broken_outlined, color: Colors.amber),
+            leading: const Icon(
+              Icons.heart_broken_outlined,
+              color: Colors.amber,
+            ),
             title: const Text('Clear Favorites'),
-            subtitle: const Text('Remove all saved donghua favorites', style: TextStyle(color: AppTheme.textMuted)),
+            subtitle: const Text(
+              'Remove all saved donghua favorites',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: AppTheme.surfaceDark,
                   title: const Text('Clear Favorites?'),
-                  content: const Text('All saved shows will be removed from your library.'),
+                  content: const Text(
+                    'All saved shows will be removed from your library.',
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
                     FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                      ),
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('Clear'),
                     ),
@@ -164,31 +232,50 @@ class SettingsScreen extends ConsumerWidget {
 
           // Clear image cache
           ListTile(
-            leading: const Icon(Icons.cleaning_services_outlined, color: Colors.blueAccent),
+            leading: const Icon(
+              Icons.cleaning_services_outlined,
+              color: Colors.blueAccent,
+            ),
             title: const Text('Clear Cache'),
-            subtitle: const Text('Free up memory and temporary image cache', style: TextStyle(color: AppTheme.textMuted)),
+            subtitle: const Text(
+              'Free up memory and temporary image cache',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
             onTap: () async {
               await settingsNotifier.clearCache();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Image and memory cache cleared')),
+                  const SnackBar(
+                    content: Text('Image and memory cache cleared'),
+                  ),
                 );
               }
             },
           ),
 
-          const Divider(height: 32, indent: 16, endIndent: 16, color: Colors.white12),
+          const Divider(
+            height: 32,
+            indent: 16,
+            endIndent: 16,
+            color: Colors.white12,
+          ),
           const _SectionHeader(title: 'ABOUT'),
 
           const ListTile(
             leading: Icon(Icons.info_outline, color: AppTheme.textMuted),
             title: Text('DonghuaPlayer'),
-            subtitle: Text('Version 1.0.0 (Release)\nBuilt with Flutter & libVLC', style: TextStyle(color: AppTheme.textMuted)),
+            subtitle: Text(
+              'Version 1.0.1 (Release)\nBuilt with Flutter & libVLC',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
           ),
           const ListTile(
             leading: Icon(Icons.shield_outlined, color: AppTheme.textMuted),
             title: Text('Privacy'),
-            subtitle: Text('No ads • No tracking • 100% offline local storage', style: TextStyle(color: AppTheme.textMuted)),
+            subtitle: Text(
+              'No ads • No tracking • 100% offline local storage',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
           ),
         ],
       ),
