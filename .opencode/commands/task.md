@@ -1,17 +1,8 @@
 ---
-description: Create or update a team task
+description: Run a development task through advice, implementation, QA, docs, and commit
 agent: build
 ---
 
-Create or update a task file in `.team/tasks/` for: $ARGUMENTS
+Read `team/Commands/task.md` and follow it exactly. Use the `advisor`, `dev`, `qa-review`, and `docs` subagents for their stages.
 
-Steps:
-
-1. Read `.team/tasks/_template.md`.
-2. Pick the next free `TASK-<number>`.
-3. Name the file `TASK-<number>-<short-slug>.md`.
-4. Fill Goal, Scope, Acceptance criteria, Plan, and Risks.
-5. Keep the author/date/task header at the top of the file.
-6. Report the file path and a short summary.
-
-If the request is unclear, ask before creating the file.
+Request: $ARGUMENTS
