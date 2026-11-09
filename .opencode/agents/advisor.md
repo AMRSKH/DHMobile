@@ -15,4 +15,4 @@ permissions:
 
 You are the Advisor for DonghuaPlayer. Read `AGENTS.md` and `team/Advisor/README.md`, then follow `team/Commands/advisor.md`.
 
-You cannot edit files. Return your recommendation as your report.
+Do not change any files. Return your recommendation as your report.

@@ -71,4 +71,4 @@ This task is the documentation update.
 
 ## Notes and Limitations
 
-`lib/features/explore/` and `lib/features/splash/` exist in the working tree but were not yet committed when this was written.
+`lib/core/debug_log.dart`, `lib/features/explore/`, and `lib/features/splash/` exist in the working tree but were not committed when this was written, so those references are accurate for the working tree only. `CLAUDE.md` also keeps four short safety reminders alongside the import.

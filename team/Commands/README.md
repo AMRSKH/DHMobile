@@ -16,14 +16,21 @@ These playbooks are the single definition of each workflow command. Tool-specifi
 
 ## Subagents
 
-| Agent | Can edit files | Definition |
+| Agent | File-edit tools | Definition |
 | --- | --- | --- |
-| `advisor` | No | `.claude/agents/`, `.opencode/agents/` |
+| `advisor` | None | `.claude/agents/`, `.opencode/agents/` |
 | `dev` | Yes | same |
-| `qa-review` | No | same |
+| `qa-review` | None | same |
 | `docs` | Yes | same |
 
-`advisor` and `qa-review` return a report. The calling agent writes it into the task file, which keeps them unable to change code.
+`advisor` and `qa-review` return a report, and the calling agent writes it into the task file.
+
+Only the `/task` orchestrator commits. What enforces this differs by tool:
+
+| Restriction | OpenCode | Claude Code |
+| --- | --- | --- |
+| No edits for `advisor`, `qa-review` | Edit rule denied. A shell command could still write a file. | No edit tools. `qa-review` has a shell, which could still write a file. |
+| No commit or push for role agents | Shell rules denied | Instruction only for `dev` and `qa-review`, which have a shell. `advisor` and `docs` have no shell. |
 
 ## Tools without slash commands
 

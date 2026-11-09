@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-09
 Task: TASK-011
-Status: In Review
+Status: Completed
 
 # TASK-011: Slash Commands and Agents
 
@@ -51,7 +51,7 @@ TASK-008, TASK-010.
 - [x] OpenCode lists `advisor`, `dev`, `doc`, `qa-review`, and `task`.
 - [x] OpenCode lists subagents `advisor`, `dev`, `docs`, and `qa-review`.
 - [x] Only the orchestrator may commit; the OpenCode role agents have `git commit` and `git push` denied.
-- [ ] Claude Code discovery confirmed. See limitations.
+- [x] Claude Code discovery confirmed: the session listed all five commands and four agents after they were added.
 
 ## Testing Requirements
 
@@ -72,15 +72,14 @@ Self-check, not independent.
 ## Git Commit
 
 - Commit Message: feat(team): add task workflow commands and subagents [TASK-011]
-- Commit Hash:
+- Commit Hash: d8b47a9
 
 ## Final Report
 
-Pending commit.
+Playbooks, wrappers, and subagents added and discovered by both tools. TASK-012 corrected the claims listed below.
 
 ## Notes and Limitations
 
-- Claude Code loads new commands and agents at session start, and the `claude` CLI is not on PATH here, so discovery could not be confirmed from this session. Open a new session and type `/task`.
 - No command was executed end to end with a model.
 - Codex has no repository command files here. It reads `AGENTS.md` and can follow `team/Commands/` directly.
-- The Claude Code `qa-review` agent has shell access, so "cannot edit" holds for file tools only.
+- The body of commit d8b47a9 says role subagents cannot commit. That is enforced in OpenCode only; in Claude Code it is an instruction for `dev` and `qa-review`. See the table in `team/Commands/README.md`.

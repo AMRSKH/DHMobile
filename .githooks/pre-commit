@@ -28,9 +28,14 @@ find_dart() {
   return 1
 }
 
-secrets=$(git diff --cached --name-only --diff-filter=ACMR |
-  grep -E -i '(^|/)\.env(\..+)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)id_(rsa|ed25519)|(^|/)key\.properties$|(^|/)secrets/' |
+# -z keeps Git from quoting non-ASCII paths, which would defeat the patterns.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -z | tr '\0' '\n')
+
+in_secret_dir=$(printf '%s\n' "$staged" | grep -E -i '(^|/)secrets/')
+secret_names=$(printf '%s\n' "$staged" |
+  grep -E -i '(^|/)\.env[^/]*$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)id_(rsa|dsa|ecdsa|ed25519)|(^|/)key\.properties$' |
   grep -E -i -v '(^|/)\.env\.example$')
+secrets=$(printf '%s\n%s\n' "$in_secret_dir" "$secret_names" | sed '/^$/d')
 
 if [ -n "$secrets" ]; then
   echo "pre-commit: refusing to commit files that look like secrets:" >&2
@@ -51,14 +56,30 @@ fi
 # Keep the export inside the project so the formatter finds the project's
 # language version and analysis options.
 workdir=".dart_tool/precommit-format"
-rm -rf "$workdir"
-mkdir -p "$workdir"
-git diff --cached --name-only --diff-filter=ACMR -z -- '*.dart' |
-  git checkout-index --stdin -z --prefix="$workdir/"
+list=".dart_tool/precommit-format.list"
+
+abort_export() {
+  rm -rf "$workdir" "$list"
+  echo "pre-commit: could not export staged Dart files for checking." >&2
+  exit 1
+}
+
+rm -rf "$workdir" "$list"
+mkdir -p "$workdir" || abort_export
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.dart' >"$list" ||
+  abort_export
+git checkout-index --stdin -z --prefix="$workdir/" <"$list" || abort_export
+
+# A partial export must not pass as an empty, "formatted" folder.
+expected=$(tr -cd '\000' <"$list" | wc -c)
+exported=$(find "$workdir" -type f -name '*.dart' | wc -l)
+if [ "$((expected))" -ne "$((exported))" ]; then
+  abort_export
+fi
 
 output=$("$dart" format --output=none --set-exit-if-changed "$workdir" 2>&1)
 status=$?
-rm -rf "$workdir"
+rm -rf "$workdir" "$list"
 
 if [ "$status" -ne 0 ]; then
   echo "pre-commit: staged Dart files are not formatted (exit $status):" >&2

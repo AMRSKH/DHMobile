@@ -11,6 +11,9 @@
     // Tests, analysis, and formatting are allowed.
     { "action": "shell", "resource": "flutter test *", "effect": "allow" },
     { "action": "shell", "resource": "flutter analyze *", "effect": "allow" },
+    { "action": "shell", "resource": "flutter build *", "effect": "allow" },
+    { "action": "shell", "resource": "D:/DevTools/flutter/bin/flutter.bat build *", "effect": "allow" },
+    { "action": "shell", "resource": "D:\\DevTools\\flutter\\bin\\flutter.bat build *", "effect": "allow" },
     { "action": "shell", "resource": "dart test *", "effect": "allow" },
     { "action": "shell", "resource": "dart format *", "effect": "allow" },
     { "action": "shell", "resource": "flutter --version *", "effect": "allow" },
@@ -35,7 +38,21 @@
     { "action": "shell", "resource": "git commit *", "effect": "allow" },
 
     // The last matching rule wins, so these stay after the allow rules.
-    { "action": "shell", "resource": "git commit *--no-verify*", "effect": "deny" },
+    { "action": "shell", "resource": "git commit *--am*", "effect": "ask" },
+    { "action": "shell", "resource": "git add -A*", "effect": "ask" },
+    { "action": "shell", "resource": "git add --a*", "effect": "ask" },
+    { "action": "shell", "resource": "git add .", "effect": "ask" },
+    { "action": "shell", "resource": "git commit *--no-ve*", "effect": "deny" },
+    { "action": "shell", "resource": "git commit -n*", "effect": "deny" },
+    { "action": "shell", "resource": "git commit -an*", "effect": "deny" },
+    { "action": "shell", "resource": "git commit * -n *", "effect": "deny" },
+    { "action": "shell", "resource": "git commit * -an *", "effect": "deny" },
+
+    // These forms can read secrets or write files.
+    { "action": "shell", "resource": "git diff *--no-index*", "effect": "deny" },
+    { "action": "shell", "resource": "git diff *--output*", "effect": "deny" },
+    { "action": "shell", "resource": "git log *--output*", "effect": "deny" },
+    { "action": "shell", "resource": "git show *--output*", "effect": "deny" },
 
     // Always ask before pushing.
     { "action": "shell", "resource": "git push *", "effect": "ask" },
@@ -57,6 +74,9 @@
     { "action": "read", "resource": "*", "effect": "allow" },
     { "action": "read", "resource": "*.env", "effect": "deny" },
     { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.envrc", "effect": "deny" },
+    { "action": "read", "resource": "*id_dsa*", "effect": "deny" },
+    { "action": "read", "resource": "*id_ecdsa*", "effect": "deny" },
     { "action": "read", "resource": "*.pem", "effect": "deny" },
     { "action": "read", "resource": "*.key", "effect": "deny" },
     { "action": "read", "resource": "*.p12", "effect": "deny" },
@@ -65,8 +85,8 @@
     { "action": "read", "resource": "*.keystore", "effect": "deny" },
     { "action": "read", "resource": "*id_rsa*", "effect": "deny" },
     { "action": "read", "resource": "*id_ed25519*", "effect": "deny" },
-    { "action": "read", "resource": "*/secrets/*", "effect": "deny" },
-    { "action": "read", "resource": "*/credentials*", "effect": "deny" },
+    { "action": "read", "resource": "*secrets/*", "effect": "deny" },
+    { "action": "read", "resource": "*credentials*", "effect": "deny" },
     { "action": "read", "resource": "android/key.properties", "effect": "deny" },
 
     { "action": "edit", "resource": "*.env", "effect": "deny" },
@@ -77,7 +97,7 @@
     { "action": "edit", "resource": "*.pfx", "effect": "deny" },
     { "action": "edit", "resource": "*.jks", "effect": "deny" },
     { "action": "edit", "resource": "*.keystore", "effect": "deny" },
-    { "action": "edit", "resource": "*/secrets/*", "effect": "deny" },
+    { "action": "edit", "resource": "*secrets/*", "effect": "deny" },
     { "action": "edit", "resource": "android/key.properties", "effect": "deny" }
   ]
 }

@@ -27,7 +27,7 @@ Dependencies flow `domain` → `data` → `features`. State lives in Riverpod pr
 lib/
   main.dart                 App entry, ProviderScope, storage init
   core/                     Theme and debug logging (DLog)
-  domain/models/            Show, Episode, StreamSource, HistoryItem
+  domain/models/            Show, Episode, StreamSource, WatchHistoryItem
   domain/providers/         DonghuaStreamProvider contract
   data/providers/           AnimeXin scraper, StreamResolver, source filter
   data/storage/             Hive storage service
@@ -86,7 +86,7 @@ Release APKs in the repo root are ignored by Git. Do not rebuild, replace, or de
 
 ## Error handling
 
-- Log failures with `DLog.error(tag, error, stack)` from `lib/core/debug_log.dart`, and events with `DLog.event(tag, data)`. Logs are compiled out of release builds.
+- Log failures with `DLog.error(tag, error, stack)` from `lib/core/debug_log.dart`, and events with `DLog.event(tag, data)`. `DLog` is enabled only in debug mode (`kDebugMode`).
 - Surface loading and failure in the UI through `AsyncValue` state.
 - Scraper and resolver code may treat one failed source as a skip, so other sources can still be tried. Do not add empty `catch` blocks anywhere else.
 - Never log tokens, credentials, or signing data.

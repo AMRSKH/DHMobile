@@ -1,9 +1,8 @@
 ---
 description: Independently verify a task and report findings by severity
-agent: qa-review
-subagent: true
+agent: build
 ---
 
-Read `team/Commands/qa-review.md` and follow it.
+Use the `qa-review` subagent. It must read `team/Commands/qa-review.md` and follow it. Then record its report under `QA Results` in the task file.
 
 Request: $ARGUMENTS

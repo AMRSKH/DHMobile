@@ -1,5 +1,5 @@
 ---
-description: Independently verifies DonghuaPlayer changes against acceptance criteria, runs tests, and reports findings by severity. Cannot edit files.
+description: Independently verifies DonghuaPlayer changes against acceptance criteria, runs tests, and reports findings by severity. Has no file-edit permission.
 mode: subagent
 permissions:
   - action: edit
