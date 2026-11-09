@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-09
 Task: TASK-009
-Status: In Review
+Status: Completed
 
 # TASK-009: Security Config and Pre-commit Hook
 
@@ -68,11 +68,11 @@ Self-check, not independent: 8 of 8 scenarios passed in a throwaway clone. The h
 ## Git Commit
 
 - Commit Message: chore(security): add pre-commit gate and tool permissions [TASK-009]
-- Commit Hash:
+- Commit Hash: 36ec554
 
 ## Final Report
 
-Pending commit.
+Pre-commit gate enabled and tested. Claude Code and OpenCode permissions added.
 
 ## Notes and Limitations
 
