@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-09
 Task: TASK-008
-Status: In Review
+Status: Completed
 
 # TASK-008: Central Agent Instructions
 
@@ -63,11 +63,11 @@ This task is the documentation update.
 ## Git Commit
 
 - Commit Message: docs(agents): rewrite central agent instructions [TASK-008]
-- Commit Hash:
+- Commit Hash: 08cb2e5
 
 ## Final Report
 
-Pending commit.
+`AGENTS.md` rewritten as the central instruction source. `CLAUDE.md` remains a thin import and now allows normal local commits.
 
 ## Notes and Limitations
 

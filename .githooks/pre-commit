@@ -1,0 +1,71 @@
+#!/bin/sh
+# Pre-commit gate for DonghuaPlayer.
+#   1. Aborts if a staged path looks like a secret.
+#   2. Aborts if a staged .dart file is not formatted.
+# Only the staged content is checked, so existing unformatted files in the
+# repository do not block unrelated commits.
+#
+# Enable once per clone: git config core.hooksPath .githooks
+
+find_dart() {
+  for candidate in \
+    "${FLUTTER_ROOT:+$FLUTTER_ROOT/bin/dart.bat}" \
+    "${FLUTTER_ROOT:+$FLUTTER_ROOT/bin/dart}"; do
+    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  if command -v dart >/dev/null 2>&1; then
+    echo dart
+    return 0
+  fi
+  # Default SDK location on the main development machine.
+  if [ -f "D:/DevTools/flutter/bin/dart.bat" ]; then
+    echo "D:/DevTools/flutter/bin/dart.bat"
+    return 0
+  fi
+  return 1
+}
+
+secrets=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -E -i '(^|/)\.env(\..+)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)id_(rsa|ed25519)|(^|/)key\.properties$|(^|/)secrets/' |
+  grep -E -i -v '(^|/)\.env\.example$')
+
+if [ -n "$secrets" ]; then
+  echo "pre-commit: refusing to commit files that look like secrets:" >&2
+  echo "$secrets" | sed 's/^/  /' >&2
+  exit 1
+fi
+
+if [ -z "$(git diff --cached --name-only --diff-filter=ACMR -- '*.dart')" ]; then
+  exit 0
+fi
+
+dart=$(find_dart)
+if [ -z "$dart" ]; then
+  echo "pre-commit: Dart SDK not found. Set FLUTTER_ROOT or add dart to PATH." >&2
+  exit 1
+fi
+
+# Keep the export inside the project so the formatter finds the project's
+# language version and analysis options.
+workdir=".dart_tool/precommit-format"
+rm -rf "$workdir"
+mkdir -p "$workdir"
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.dart' |
+  git checkout-index --stdin -z --prefix="$workdir/"
+
+output=$("$dart" format --output=none --set-exit-if-changed "$workdir" 2>&1)
+status=$?
+rm -rf "$workdir"
+
+if [ "$status" -ne 0 ]; then
+  echo "pre-commit: staged Dart files are not formatted (exit $status):" >&2
+  echo "$output" | grep -v -E 'Package resolution error|Failed to resolve package' |
+    sed -E 's#\.dart_tool[\\/]precommit-format[\\/]##' >&2
+  echo "Run: dart format <file>, then stage it again." >&2
+  exit 1
+fi
+
+exit 0

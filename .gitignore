@@ -44,3 +44,16 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 *.apk
+
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Claude Code personal overrides
+.claude/settings.local.json

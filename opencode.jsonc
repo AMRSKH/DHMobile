@@ -16,11 +16,26 @@
     { "action": "shell", "resource": "flutter --version *", "effect": "allow" },
     { "action": "shell", "resource": "dart --version *", "effect": "allow" },
 
+    // The Flutter SDK is not on PATH on the main development machine.
+    { "action": "shell", "resource": "D:/DevTools/flutter/bin/flutter.bat test *", "effect": "allow" },
+    { "action": "shell", "resource": "D:/DevTools/flutter/bin/flutter.bat analyze *", "effect": "allow" },
+    { "action": "shell", "resource": "D:/DevTools/flutter/bin/dart.bat format *", "effect": "allow" },
+    { "action": "shell", "resource": "D:\\DevTools\\flutter\\bin\\flutter.bat test *", "effect": "allow" },
+    { "action": "shell", "resource": "D:\\DevTools\\flutter\\bin\\flutter.bat analyze *", "effect": "allow" },
+    { "action": "shell", "resource": "D:\\DevTools\\flutter\\bin\\dart.bat format *", "effect": "allow" },
+
     // Read-only git inspection is allowed.
     { "action": "shell", "resource": "git status *", "effect": "allow" },
     { "action": "shell", "resource": "git diff *", "effect": "allow" },
     { "action": "shell", "resource": "git log *", "effect": "allow" },
     { "action": "shell", "resource": "git show *", "effect": "allow" },
+
+    // Normal local commits are allowed after a completed task.
+    { "action": "shell", "resource": "git add *", "effect": "allow" },
+    { "action": "shell", "resource": "git commit *", "effect": "allow" },
+
+    // The last matching rule wins, so these stay after the allow rules.
+    { "action": "shell", "resource": "git commit *--no-verify*", "effect": "deny" },
 
     // Always ask before pushing.
     { "action": "shell", "resource": "git push *", "effect": "ask" },

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(flutter test *)",
+      "Bash(flutter analyze *)",
+      "Bash(dart format *)",
+      "Bash(D:/DevTools/flutter/bin/flutter.bat test *)",
+      "Bash(D:/DevTools/flutter/bin/flutter.bat analyze *)",
+      "Bash(D:/DevTools/flutter/bin/dart.bat format *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(git rebase *)",
+      "Bash(flutter pub *)",
+      "Bash(dart pub *)",
+      "Bash(D:/DevTools/flutter/bin/flutter.bat pub *)",
+      "Bash(D:/DevTools/flutter/bin/dart.bat pub *)",
+      "Bash(npm install *)",
+      "PowerShell(git push *)",
+      "PowerShell(git reset --hard *)",
+      "PowerShell(git clean *)",
+      "PowerShell(git rebase *)"
+    ],
+    "deny": [
+      "Bash(git commit *--no-verify*)",
+      "PowerShell(git commit *--no-verify*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.jks)",
+      "Read(./**/*.keystore)",
+      "Read(./**/id_rsa*)",
+      "Read(./**/id_ed25519*)",
+      "Read(./android/key.properties)",
+      "Read(./**/secrets/**)",
+      "Edit(./**/.env)",
+      "Edit(./**/.env.*)",
+      "Edit(./**/*.pem)",
+      "Edit(./**/*.key)",
+      "Edit(./**/*.p12)",
+      "Edit(./**/*.pfx)",
+      "Edit(./**/*.jks)",
+      "Edit(./**/*.keystore)",
+      "Edit(./android/key.properties)",
+      "Edit(./**/secrets/**)"
+    ]
+  }
+}
