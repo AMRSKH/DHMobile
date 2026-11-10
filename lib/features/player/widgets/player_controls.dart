@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/models/stream_source.dart';
+import '../source_selection.dart';
 
 class PlayerControls extends StatelessWidget {
   final String title;
@@ -21,6 +22,12 @@ class PlayerControls extends StatelessWidget {
   final VoidCallback onNextEpisode;
   final VoidCallback onBack;
 
+  /// Called when the speed or source menu opens, and when it closes with or
+  /// without a selection. The owner uses them to keep the controls on screen
+  /// while a menu is open.
+  final VoidCallback? onMenuOpened;
+  final VoidCallback? onMenuClosed;
+
   const PlayerControls({
     super.key,
     required this.title,
@@ -41,6 +48,8 @@ class PlayerControls extends StatelessWidget {
     required this.onSourceChanged,
     required this.onNextEpisode,
     required this.onBack,
+    this.onMenuOpened,
+    this.onMenuClosed,
   });
 
   String _formatDuration(Duration d) {
@@ -119,7 +128,18 @@ class PlayerControls extends StatelessWidget {
                           Icons.high_quality,
                           color: Colors.white,
                         ),
-                        onSelected: onSourceChanged,
+                        // Wider than the default 280 so long server names
+                        // fit; longer ones are cut with an ellipsis.
+                        constraints: const BoxConstraints(
+                          minWidth: 112,
+                          maxWidth: 420,
+                        ),
+                        onOpened: onMenuOpened,
+                        onCanceled: onMenuClosed,
+                        onSelected: (index) {
+                          onSourceChanged(index);
+                          onMenuClosed?.call();
+                        },
                         itemBuilder: (context) => List.generate(
                           sources.length,
                           (i) => PopupMenuItem(
@@ -135,8 +155,12 @@ class PlayerControls extends StatelessWidget {
                                 else
                                   const SizedBox(width: 18),
                                 const SizedBox(width: 8),
-                                Text(
-                                  '${sources[i].server ?? "Server ${i + 1}"} (${sources[i].quality})',
+                                Flexible(
+                                  child: Text(
+                                    sourceLabel(sources[i], i),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -158,27 +182,36 @@ class PlayerControls extends StatelessWidget {
                     onPressed: onSeekBack10,
                   ),
                   const SizedBox(width: 32),
-                  if (isBuffering)
-                    const SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFE50914),
-                        strokeWidth: 3,
+                  // Play/pause stays in the tree while buffering, so the user
+                  // can still pause or resume. The spinner is a ring around
+                  // it that lets taps through.
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        iconSize: 64,
+                        icon: Icon(
+                          isPlaying
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_filled,
+                          color: Colors.white,
+                        ),
+                        tooltip: isPlaying ? 'Pause' : 'Play',
+                        onPressed: onPlayPause,
                       ),
-                    )
-                  else
-                    IconButton(
-                      iconSize: 64,
-                      icon: Icon(
-                        isPlaying
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_filled,
-                        color: Colors.white,
-                      ),
-                      tooltip: isPlaying ? 'Pause' : 'Play',
-                      onPressed: onPlayPause,
-                    ),
+                      if (isBuffering)
+                        const IgnorePointer(
+                          child: SizedBox(
+                            width: 72,
+                            height: 72,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFFE50914),
+                              strokeWidth: 3,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(width: 32),
                   IconButton(
                     iconSize: 42,
@@ -242,7 +275,12 @@ class PlayerControls extends StatelessWidget {
                         ),
                         PopupMenuButton<double>(
                           tooltip: 'Playback Speed',
-                          onSelected: onSpeedChanged,
+                          onOpened: onMenuOpened,
+                          onCanceled: onMenuClosed,
+                          onSelected: (value) {
+                            onSpeedChanged(value);
+                            onMenuClosed?.call();
+                          },
                           itemBuilder: (context) =>
                               [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
                                   .map(

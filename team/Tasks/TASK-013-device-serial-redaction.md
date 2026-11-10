@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-013
-Status: In Review
+Status: Completed
 
 # TASK-013: Device Serial Redaction
 
@@ -21,7 +21,7 @@ Five records migrated in TASK-010 contained the serial, and it was committed loc
 
 ## Scope
 
-- History of `chore/harness-reset` from TASK-010 onward.
+- History of `chore/harness-reset` (renamed `dev` afterwards) from TASK-010 onward.
 - `.gitignore`.
 - `FLUTTER_LIVE_TESTING.md` (edited, left untracked for the owner to commit).
 - Commit hashes in the TASK-010, TASK-011, and TASK-012 records.
@@ -75,11 +75,11 @@ TASK-012 notes, `FLUTTER_LIVE_TESTING.md`.
 ## Git Commit
 
 - Commit Message: chore(security): ignore local launch config [TASK-013]
-- Commit Hash:
+- Commit Hash: e944670
 
 ## Final Report
 
-Pending commit.
+The serial is gone from the branch history and from every file Git can add. The local launch config is ignored and still works.
 
 ## Notes and Limitations
 

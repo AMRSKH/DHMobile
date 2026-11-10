@@ -10,6 +10,30 @@ import '../player/player_screen.dart';
 import '../../core/debug_log.dart';
 import 'library_controller.dart';
 
+/// A title that is nothing but "Episode N", "Ep N", or "Ep. N".
+final RegExp _episodeOnlyTitle = RegExp(
+  r'^(?:episode|ep\.?)\s*(\d+(?:\.\d+)?)$',
+  caseSensitive: false,
+);
+
+/// Label for a history card. The episode title is left out when it is empty
+/// or only repeats "Episode N", also in another spelling of the same number
+/// ("Episode 02", "Ep 2").
+String historyEpisodeLabel(String episodeNumber, String title) {
+  final base = 'Episode $episodeNumber';
+  final trimmed = title.trim();
+  if (trimmed.isEmpty || trimmed.toLowerCase() == base.toLowerCase()) {
+    return base;
+  }
+  final match = _episodeOnlyTitle.firstMatch(trimmed);
+  if (match != null) {
+    final titleNumber = double.tryParse(match.group(1)!);
+    final number = double.tryParse(episodeNumber.trim());
+    if (titleNumber != null && titleNumber == number) return base;
+  }
+  return '$base • $trimmed';
+}
+
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
@@ -240,7 +264,7 @@ class _HistoryCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Episode $epNumStr • ${item.episode.title}',
+                          historyEpisodeLabel(epNumStr, item.episode.title),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

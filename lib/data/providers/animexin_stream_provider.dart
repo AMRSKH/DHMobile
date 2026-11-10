@@ -10,6 +10,26 @@ import '../../core/debug_log.dart';
 import 'stream_resolver.dart';
 import 'stream_source_filter.dart';
 
+final RegExp _episodeSuffix = RegExp(
+  r'\s+(?:Episode|Ep\.?)\s*\d+.*$',
+  caseSensitive: false,
+);
+
+/// Whitespace and the separators `: – — - |` at the end of a title.
+final RegExp _trailingSeparators = RegExp(r'[\s:–—\-|]+$');
+
+/// Removes the episode suffix that homepage posts carry in their title, for
+/// example "Some Show Episode 11 Indonesia, English Sub" becomes "Some Show".
+/// A separator left at the end ("Some Show:", "Some Show -") goes too.
+/// A title that would end up empty is returned as it was, only trimmed.
+String cleanShowTitle(String title) {
+  final trimmed = title.trim();
+  final cleaned = trimmed
+      .replaceFirst(_episodeSuffix, '')
+      .replaceFirst(_trailingSeparators, '');
+  return cleaned.isEmpty ? trimmed : cleaned;
+}
+
 class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
   List<Show>? _trendingCache;
@@ -325,7 +345,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
           pool.add(
             Show(
               id: url,
-              title: title,
+              title: cleanShowTitle(title),
               poster: poster,
               episodeCount: article.querySelector('.epx, .bt .ep')?.text.trim(),
               providerId: id,
