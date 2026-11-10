@@ -51,9 +51,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   VideoPlayerController? _vpController;
 
   // The engine of the current load. Every new load starts on the engine from
-  // Settings (VLC by default). When VLC fails on a source, the same source
-  // is loaded again on ExoPlayer before the player moves on to another one.
-  PlayerEngine _engine = PlayerEngine.vlc;
+  // Settings (ExoPlayer by default). When VLC fails on a source, the same
+  // source is loaded again on ExoPlayer before the player moves on.
+  PlayerEngine _engine = PlayerEngine.defaultEngine;
   // True once the current load has played. The Android VLC plugin reports
   // its buffering events as "not buffering", so for VLC this, and not
   // `_isBuffering`, tells a load that never started (QA TASK-020 M1).

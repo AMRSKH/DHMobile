@@ -14,7 +14,7 @@ This file is the single source of truth for every AI coding agent working in thi
 | State management | `flutter_riverpod` |
 | Networking and scraping | `dio`, `html` |
 | Local storage | `hive`, `hive_flutter` |
-| Playback | `flutter_vlc_player` (libVLC, software decoding) first, `video_player` (ExoPlayer) as fallback per source; switchable in Settings. `pubspec.yaml` overrides `flutter_vlc_player_platform_interface` with a pinned git commit (upstream bug #546); keep it until a fixed version is on pub.dev |
+| Playback | `video_player` (ExoPlayer) by default; `flutter_vlc_player` (libVLC, software decoding, falls back to ExoPlayer per source) selectable in Settings. `pubspec.yaml` overrides `flutter_vlc_player_platform_interface` with a pinned git commit (upstream bug #546); keep it until a fixed version is on pub.dev |
 | Other | `wakelock_plus`, `screen_brightness`, `cached_network_image`, `intl` |
 | Tests and lints | `flutter_test`, `flutter_lints` |
 | Package manager | `pub` (`pubspec.yaml`, `pubspec.lock`) |

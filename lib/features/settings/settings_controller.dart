@@ -13,7 +13,7 @@ class AppSettings {
     required this.defaultQuality,
     required this.preferredSubtitle,
     this.language = AppLanguage.en,
-    this.playerEngine = PlayerEngine.vlc,
+    this.playerEngine = PlayerEngine.defaultEngine,
   });
 
   AppSettings copyWith({

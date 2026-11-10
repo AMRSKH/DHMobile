@@ -20,12 +20,13 @@ void main() {
       expect(PlayerEngine.exo.fallbackEngine(), isNull);
     });
 
-    test('codes round trip, and unknown codes give VLC', () {
+    test('codes round trip, and unknown codes give the default', () {
       for (final engine in PlayerEngine.values) {
         expect(PlayerEngine.fromCode(engine.code), engine);
       }
-      expect(PlayerEngine.fromCode(null), PlayerEngine.vlc);
-      expect(PlayerEngine.fromCode('mpv'), PlayerEngine.vlc);
+      expect(PlayerEngine.defaultEngine, PlayerEngine.exo);
+      expect(PlayerEngine.fromCode(null), PlayerEngine.exo);
+      expect(PlayerEngine.fromCode('mpv'), PlayerEngine.exo);
     });
 
     test('chain lists the engines a source is tried on', () {
@@ -37,13 +38,13 @@ void main() {
   group('player engine setting', () {
     // A StorageService that was never initialised keeps its values in
     // memory, so these tests need no Hive box.
-    test('is VLC by default', () {
+    test('is ExoPlayer by default', () {
       final storage = StorageService();
 
       expect(storage.getPlayerEngineCode(), isNull);
       expect(
         _containerFor(storage).read(settingsProvider).playerEngine,
-        PlayerEngine.vlc,
+        PlayerEngine.exo,
       );
     });
 
@@ -53,13 +54,13 @@ void main() {
 
       await container
           .read(settingsProvider.notifier)
-          .setPlayerEngine(PlayerEngine.exo);
+          .setPlayerEngine(PlayerEngine.vlc);
 
-      expect(container.read(settingsProvider).playerEngine, PlayerEngine.exo);
-      expect(storage.getPlayerEngineCode(), 'exo');
+      expect(container.read(settingsProvider).playerEngine, PlayerEngine.vlc);
+      expect(storage.getPlayerEngineCode(), 'vlc');
       expect(
         _containerFor(storage).read(settingsProvider).playerEngine,
-        PlayerEngine.exo,
+        PlayerEngine.vlc,
       );
     });
 
@@ -70,7 +71,7 @@ void main() {
 
       await container
           .read(settingsProvider.notifier)
-          .setPlayerEngine(PlayerEngine.exo);
+          .setPlayerEngine(PlayerEngine.vlc);
 
       expect(container.read(settingsProvider).defaultQuality, '1080p');
     });

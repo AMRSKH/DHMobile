@@ -1,10 +1,15 @@
 /// The video engines the player can use.
 enum PlayerEngine {
-  /// libVLC through `flutter_vlc_player`. The main engine.
+  /// libVLC through `flutter_vlc_player`. Falls back to ExoPlayer per source.
   vlc('vlc', 'VLC (libVLC)'),
 
-  /// Android ExoPlayer through `video_player`. The fallback engine.
+  /// Android ExoPlayer through `video_player`.
   exo('exo', 'ExoPlayer');
+
+  /// The engine when the user chose none. ExoPlayer since TASK-027: on the
+  /// owner's SM-A546E, VLC at times drew grey or smeared frames, which are no
+  /// error and so never reach the ExoPlayer fallback. VLC stays in Settings.
+  static const PlayerEngine defaultEngine = PlayerEngine.exo;
 
   const PlayerEngine(this.code, this.label);
 
@@ -14,12 +19,12 @@ enum PlayerEngine {
   /// Shown in Settings, the same in every language.
   final String label;
 
-  /// Unknown or missing codes give VLC, the main engine.
+  /// Unknown or missing codes give [defaultEngine].
   static PlayerEngine fromCode(String? code) {
     for (final engine in PlayerEngine.values) {
       if (engine.code == code) return engine;
     }
-    return PlayerEngine.vlc;
+    return defaultEngine;
   }
 
   /// The engines a source is tried on, in order, for Settings About. For
