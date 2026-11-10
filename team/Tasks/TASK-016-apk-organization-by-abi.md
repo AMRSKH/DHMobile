@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-016
-Status: In Review
+Status: Completed
 
 # TASK-016: Organize APK builds by chip architecture and rename to DHMobile
 
@@ -169,9 +169,25 @@ Run by the main agent on 2026-11-10, after the Docs stage:
 
 ## Git Commit
 
-- Commit Message:
-- Commit Hash:
+- Commit Message: chore(release): archive APKs by ABI and rename to DHMobile [TASK-016]
+- Commit Hash: 10d59ca
 
 ## Final Report
 
+TASK-016 is complete. All APKs built from v1.0.0 to now sit in `apk/<abi>/`, renamed to `DHMobile-<version>[-<variant>]-<abi>.apk`, and the repo root holds no APK.
+
+- Moved and renamed: 7 old APKs (4 universal, 1 arm64-v8a, 1 armeabi-v7a, 1 x86_64), copied, SHA256 checked, originals deleted.
+- Built: 3 new v1.0.3 split APKs from the TASK-015 source (commit `9151a10`), verified per ABI. Sizes 60.74 / 53.94 / 67.91 MB.
+- Counts: `apk/universal/` (4), `apk/arm64-v8a/` (2), `apk/armeabi-v7a/` (2), `apk/x86_64/` (2).
+- Docs: new `apk/README.md`, plus updates to `AGENTS.md` and `FLUTTER_LIVE_TESTING.md`.
+- QA: independent `qa-review`, one Major finding (stale provenance note) fixed, then accepted.
+- Checks: analyze clean, 153 tests pass, split release build succeeds.
+- Commit: `10d59ca`.
+
 ## Notes and Limitations
+
+- The APKs are gitignored by design, so the commit holds only `apk/README.md` and the docs; the files live on this machine only.
+- The v1.0.0 and v1.0.1 APKs still show the old app name and package id when installed; the rename changes file names only.
+- v1.0.3 uses application id `dhmobile.amscenter.dev` and the debug key, so it does not upgrade an installed v1.0.x app. Do not publish these files.
+- `build/app/outputs/flutter-apk/app-release.apk` is an older universal v1.0.3 build that was not archived.
+- No universal v1.0.3 APK exists; copy the arm64-v8a file for most phones.

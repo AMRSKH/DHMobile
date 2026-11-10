@@ -28,7 +28,7 @@ lib/
   main.dart                 App entry, ProviderScope, storage init
   core/                     Theme, debug logging (DLog), AppInfo
   core/l10n/                AppStrings: English and Khmer UI text
-  core/widgets/             Shared widgets (skeleton placeholders)
+  core/widgets/             Shared widgets (skeleton placeholders, underline tab bar)
   domain/models/            Show, Episode, StreamSource, WatchHistoryItem,
                             ScheduleEntry
   domain/providers/         DonghuaStreamProvider contract

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:donghua_player/core/l10n/app_strings.dart';
 import 'package:donghua_player/core/widgets/skeleton.dart';
+import 'package:donghua_player/core/widgets/underline_tab_bar.dart';
 import 'package:donghua_player/data/storage/storage_service.dart';
 import 'package:donghua_player/domain/models/schedule_entry.dart';
 import 'package:donghua_player/features/detail/detail_screen.dart';
@@ -45,10 +46,19 @@ Future<void> _wait(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
 
-bool _chipSelected(WidgetTester tester, String label) {
-  return tester
-      .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label))
-      .selected;
+/// Whether the category tab with [label] is the selected one, read from the
+/// semantics flag of the tab.
+bool _tabSelected(WidgetTester tester, String label) {
+  final tab = find.ancestor(
+    of: find.descendant(
+      of: find.byType(UnderlineTabBar),
+      matching: find.text(label),
+    ),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is Semantics && widget.properties.button == true,
+    ),
+  );
+  return tester.widget<Semantics>(tab).properties.selected ?? false;
 }
 
 void main() {
@@ -127,9 +137,9 @@ void main() {
     await _wait(tester);
 
     expect(find.text('Explore'), findsOneWidget);
-    expect(_chipSelected(tester, 'Schedule'), isTrue);
-    expect(_chipSelected(tester, 'New Series'), isFalse);
-    expect(_chipSelected(tester, 'Popular'), isFalse);
+    expect(_tabSelected(tester, 'Schedule'), isTrue);
+    expect(_tabSelected(tester, 'New Series'), isFalse);
+    expect(_tabSelected(tester, 'Popular'), isFalse);
     for (final label in _weekdays) {
       expect(find.text(label), findsOneWidget);
     }
@@ -191,8 +201,8 @@ void main() {
     await tester.tap(find.text('New Series'));
     await _wait(tester);
 
-    expect(_chipSelected(tester, 'New Series'), isTrue);
-    expect(_chipSelected(tester, 'Schedule'), isFalse);
+    expect(_tabSelected(tester, 'New Series'), isTrue);
+    expect(_tabSelected(tester, 'Schedule'), isFalse);
     expect(find.text('Mon'), findsNothing);
     expect(find.text('New One'), findsOneWidget);
     expect(find.text('New Two'), findsOneWidget);
@@ -205,7 +215,7 @@ void main() {
     await tester.tap(find.text('Popular'));
     await _wait(tester);
 
-    expect(_chipSelected(tester, 'Popular'), isTrue);
+    expect(_tabSelected(tester, 'Popular'), isTrue);
     expect(find.text('Popular One'), findsOneWidget);
     expect(find.text('Completed'), findsOneWidget);
     expect(find.text('New One'), findsNothing);
@@ -359,6 +369,13 @@ void main() {
     final today = DateTime.now().weekday;
     expect(find.text('Day $today Show'), findsOneWidget);
     expect(find.text('EP $today · ចេញហើយ'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // A Khmer tab selects its category like an English one.
+    await tester.tap(find.text('ពេញនិយម'));
+    await _wait(tester);
+    expect(_tabSelected(tester, 'ពេញនិយម'), isTrue);
+    expect(_tabSelected(tester, 'កាលវិភាគ'), isFalse);
     expect(tester.takeException(), isNull);
   });
 }

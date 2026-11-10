@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/debug_log.dart';
 import '../../core/widgets/skeleton.dart';
+import '../../core/widgets/underline_tab_bar.dart';
 import '../../domain/models/schedule_entry.dart';
 import '../../domain/models/show.dart';
 import '../detail/detail_screen.dart';
@@ -141,32 +142,11 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: Row(
-        children: [
-          for (final category in ExploreCategory.values)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(strings(_labels[category]!)),
-                selected: category == selected,
-                showCheckmark: false,
-                selectedColor: AppTheme.primaryRed,
-                backgroundColor: AppTheme.cardDark,
-                side: BorderSide.none,
-                labelStyle: TextStyle(
-                  color: category == selected ? Colors.white : Colors.white70,
-                  fontWeight: category == selected
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                ),
-                onSelected: (_) => onSelected(category),
-              ),
-            ),
-        ],
-      ),
+    const categories = ExploreCategory.values;
+    return UnderlineTabBar(
+      labels: [for (final category in categories) strings(_labels[category]!)],
+      selectedIndex: categories.indexOf(selected),
+      onSelected: (index) => onSelected(categories[index]),
     );
   }
 }
