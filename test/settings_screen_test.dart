@@ -85,7 +85,12 @@ void main() {
     expect(find.text('Player'), findsOneWidget);
     expect(find.text('VLC (libVLC) → ExoPlayer'), findsOneWidget);
     expect(find.text('Content source'), findsOneWidget);
-    expect(find.text('AnimeXin (animexin.dev)'), findsOneWidget);
+    expect(
+      find.text(
+        'AnimeXin, DonghuaWorld, LuciferDonghua, DonghuaStream, LMAnime',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Credits'), findsOneWidget);
     expect(
       find.text(

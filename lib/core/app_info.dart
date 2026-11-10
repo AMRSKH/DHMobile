@@ -1,7 +1,8 @@
 /// Facts about the app that the UI shows. `test/app_info_test.dart` checks
 /// that they match `pubspec.yaml` and the Android manifest.
 ///
-/// The player engine is a setting (`PlayerEngine`), not a fixed fact.
+/// The player engine is a setting (`PlayerEngine`), and the content sources
+/// are listed in `kContentSources`.
 class AppInfo {
   const AppInfo._();
 
@@ -13,6 +14,4 @@ class AppInfo {
 
   /// The part of `version:` in `pubspec.yaml` after the `+`.
   static const String buildNumber = '5';
-
-  static const String contentSource = 'AnimeXin (animexin.dev)';
 }

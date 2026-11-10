@@ -23,8 +23,4 @@ void main() {
     expect(label, isNotNull);
     expect(label!.group(1), AppInfo.name);
   });
-
-  test('the About facts are not empty', () {
-    expect(AppInfo.contentSource, isNotEmpty);
-  });
 }

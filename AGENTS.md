@@ -4,7 +4,7 @@ This file is the single source of truth for every AI coding agent working in thi
 
 ## Overview
 
-**DonghuaPlayer** (`donghua_player`) is a Flutter Android app for browsing and streaming donghua and anime. Content is scraped from AnimeXin (`animexin.dev`). There is no backend owned by this project.
+**DonghuaPlayer** (`donghua_player`) is a Flutter Android app for browsing and streaming donghua and anime. Content is scraped from the sites DonghuaCLI uses (https://github.com/Thanukamax/donghua-cli): AnimeXin, DonghuaWorld, LuciferDonghua, DonghuaStream, and LMAnime, listed in `lib/domain/models/content_source.dart`. All of them use the AnimeStream WordPress theme. Search asks every source at once; Explore comes from AnimeXin. There is no backend owned by this project.
 
 ## Technology stack
 
@@ -14,7 +14,7 @@ This file is the single source of truth for every AI coding agent working in thi
 | State management | `flutter_riverpod` |
 | Networking and scraping | `dio`, `html` |
 | Local storage | `hive`, `hive_flutter` |
-| Playback | `flutter_vlc_player`, with `video_player` as fallback |
+| Playback | `flutter_vlc_player` (libVLC) first, `video_player` (ExoPlayer) as fallback per source; switchable in Settings |
 | Other | `wakelock_plus`, `screen_brightness`, `cached_network_image`, `intl` |
 | Tests and lints | `flutter_test`, `flutter_lints` |
 | Package manager | `pub` (`pubspec.yaml`, `pubspec.lock`) |
@@ -30,10 +30,12 @@ lib/
   core/l10n/                AppStrings: English and Khmer UI text
   core/widgets/             Shared widgets (skeleton placeholders, underline tab bar)
   domain/models/            Show, Episode, StreamSource, WatchHistoryItem,
-                            ScheduleEntry
+                            ScheduleEntry, PlayerEngine, ContentSource list
   domain/providers/         DonghuaStreamProvider contract
-  data/providers/           AnimeXin scraper and listing parser,
-                            StreamResolver, source filter
+  data/providers/           AnimeStream site provider (one per source),
+                            AnimeXin provider and listing parser,
+                            MultiSourceStreamProvider, StreamResolver,
+                            source filter
   data/storage/             Hive storage service
   features/                 One folder per area: splash, home, explore,
                             search, detail, player, library, settings

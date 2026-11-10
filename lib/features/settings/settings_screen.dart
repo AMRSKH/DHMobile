@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_info.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
+import '../../domain/models/content_source.dart';
 import '../../domain/models/player_engine.dart';
 import '../library/library_controller.dart';
 import 'settings_controller.dart';
@@ -341,7 +342,10 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.public, color: AppTheme.textMuted),
             title: Text(s(S.aboutContentSource)),
-            subtitle: const Text(AppInfo.contentSource, style: muted),
+            subtitle: Text(
+              kContentSources.map((s) => s.name).join(', '),
+              style: muted,
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.code_outlined, color: AppTheme.textMuted),

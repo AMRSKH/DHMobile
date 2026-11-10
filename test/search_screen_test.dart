@@ -96,6 +96,38 @@ void main() {
     expect(find.byType(SkeletonPosterGrid), findsNothing);
   });
 
+  testWidgets('an older answer that arrives late does not replace a newer '
+      'one', (tester) async {
+    final answers = <Completer<List<Show>>>[];
+    final fake = FakeStreamProvider(
+      onSearch: (_) {
+        final completer = Completer<List<Show>>();
+        answers.add(completer);
+        return completer.future;
+      },
+    );
+    await _pumpSearch(tester, fake);
+    await _wait(tester);
+    answers[0].complete([fakeShow('a', title: 'First List')]);
+    await _wait(tester);
+
+    await tester.enterText(find.byType(TextField), 'slow');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await _wait(tester);
+    await tester.enterText(find.byType(TextField), 'fast');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await _wait(tester);
+    expect(fake.searchQueries, ['', 'slow', 'fast']);
+
+    answers[2].complete([fakeShow('f', title: 'Fast Result')]);
+    await _wait(tester);
+    answers[1].complete([fakeShow('s', title: 'Slow Result')]);
+    await _wait(tester);
+
+    expect(find.text('Fast Result'), findsOneWidget);
+    expect(find.text('Slow Result'), findsNothing);
+  });
+
   testWidgets('a failure shows a fixed text with Retry, not the raw error', (
     tester,
   ) async {
@@ -151,5 +183,27 @@ void main() {
     expect(find.byTooltip('ផ្ទុកឡើងវិញ'), findsOneWidget);
     // The app name is not translated.
     expect(find.text('DHMobile'), findsOneWidget);
+  });
+
+  testWidgets('each result shows the name of its source', (tester) async {
+    final fake = FakeStreamProvider(
+      onSearch: (_) async => [
+        Show(
+          id: 'https://donghuaworld.com/anime/ri/',
+          title: 'From DonghuaWorld',
+          poster: '',
+          providerId: 'donghuaworld',
+        ),
+        fakeShow('x', title: 'Unknown source'),
+      ],
+    );
+    await _pumpSearch(tester, fake);
+    await _wait(tester);
+
+    expect(find.text('From DonghuaWorld'), findsOneWidget);
+    expect(find.text('DonghuaWorld'), findsOneWidget);
+    // A provider id that is no known source gets no badge.
+    expect(find.text('Unknown source'), findsOneWidget);
+    expect(find.text('fake'), findsNothing);
   });
 }

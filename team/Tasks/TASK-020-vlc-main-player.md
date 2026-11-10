@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-020
-Status: In Review
+Status: Completed
 
 # TASK-020: VLC as the main player, ExoPlayer as fallback
 
@@ -120,7 +120,7 @@ Round 2: Accepted. analyze clean, 209 tests passed, format clean.
 ## Git Commit
 
 - Commit Message: `feat(player): make VLC the main player with ExoPlayer fallback [TASK-020]`
-- Commit Hash:
+- Commit Hash: fa22927
 
 ## Final Report
 
