@@ -55,6 +55,17 @@ int pickInitialSourceIndex(
   final preferred = quality.trim().toLowerCase();
   if (preferred.isEmpty || preferred == 'auto') return candidates.first;
 
+  // 2K/4K: start on an adaptive stream of the language group when there is
+  // one. It begins at a low bitrate and climbs as high as the network allows,
+  // so playback starts at once; failover then tries the fixed files (owner's
+  // choice, TASK-031).
+  final wanted = _parseHeight(preferred);
+  if (wanted != null && wanted >= 1440) {
+    for (final i in candidates) {
+      if (isAdaptiveStream(sources[i])) return i;
+    }
+  }
+
   for (final i in candidates) {
     if (sources[i].quality.toLowerCase().contains(preferred)) return i;
   }
@@ -151,6 +162,13 @@ int stickySourceIndex(List<StreamSource> sources, StreamSource? previous) {
         (s.server ?? '').toLowerCase() == server &&
         s.quality.toLowerCase() == quality,
   );
+}
+
+/// True for an HLS master playlist that adapts its quality (Dailymotion
+/// "Multi-Bitrate (HLS)", OK.ru "Auto HLS"), not a single fixed variant.
+bool isAdaptiveStream(StreamSource source) {
+  return source.url.toLowerCase().contains('.m3u8') &&
+      qualityName(source.quality) == 'Auto';
 }
 
 /// Menu label for a source in the owner's format "SubLang-Source quality",

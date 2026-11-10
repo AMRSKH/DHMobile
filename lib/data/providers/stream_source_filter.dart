@@ -32,6 +32,23 @@ class StreamSourceFilter {
             ),
           );
 
+  /// Hosts of OK.ru's video CDN. Their URLs come straight from OK.ru's own
+  /// metadata a moment earlier, so they are kept without a probe: probing
+  /// them cost time and, when a probe timed out, dropped working qualities
+  /// (TASK-031). A dead one is still caught by failover and re-resolve.
+  static const List<String> trustedHosts = [
+    'vkuser.net',
+    'okcdn.ru',
+    'mycdn.me',
+  ];
+
+  static bool isTrusted(StreamSource source) {
+    final host = Uri.tryParse(source.url)?.host.toLowerCase() ?? '';
+    return trustedHosts.any(
+      (trusted) => host == trusted || host.endsWith('.$trusted'),
+    );
+  }
+
   Future<List<StreamSource>> filter(List<StreamSource> sources) async {
     final unique = <StreamSource>[];
     final seen = <String>{};
@@ -47,7 +64,9 @@ class StreamSourceFilter {
     if (unique.isEmpty) return const [];
 
     final results = await Future.wait(
-      unique.map((source) => _isPlayable(source)),
+      unique.map(
+        (source) async => isTrusted(source) || await _isPlayable(source),
+      ),
     );
 
     return [

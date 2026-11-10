@@ -2,6 +2,40 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../domain/models/stream_source.dart';
 
+/// Hosts that never give a stream the app can play: cloud storage, pages
+/// that need a browser, and hosts that refuse plain clients (Rumble's embed
+/// API answers 403 since 2026-11-10). The resolver skips them at once instead
+/// of waiting for their pages (TASK-031: resolving took 5-13 s). Matched as
+/// the host itself or a subdomain of it, so "omega.io" is not "mega.io".
+const List<String> kUnplayableHosts = [
+  'mega.nz',
+  'mega.io',
+  'drive.google.com',
+  'dropbox.com',
+  'vvide0.com',
+  'playmogo.com',
+  'ds2play.com',
+  'd0000d.com',
+  'youtube.com',
+  'youtube-nocookie.com',
+  'youtu.be',
+  'd.tube',
+  'rumble.com',
+];
+
+/// The Dood mirrors change their top-level domain often (dood.yt, dood.so,
+/// doodstream.com, ...), so any host whose name starts with "dood" counts.
+final RegExp _doodHost = RegExp(r'(^|\.)dood[a-z0-9-]*\.');
+
+/// True when [url] is on one of [kUnplayableHosts] or a Dood mirror.
+bool isUnplayableHost(String url) {
+  final uri = Uri.tryParse(url.startsWith('//') ? 'https:$url' : url);
+  final host = uri?.host.toLowerCase() ?? '';
+  if (host.isEmpty) return false;
+  if (_doodHost.hasMatch(host)) return true;
+  return kUnplayableHosts.any((h) => host == h || host.endsWith('.$h'));
+}
+
 const String kDefaultUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -14,8 +48,8 @@ class StreamResolver {
           Dio(
             BaseOptions(
               headers: {'User-Agent': kDefaultUserAgent},
-              connectTimeout: const Duration(seconds: 8),
-              receiveTimeout: const Duration(seconds: 8),
+              connectTimeout: const Duration(seconds: 6),
+              receiveTimeout: const Duration(seconds: 6),
             ),
           );
 
@@ -31,15 +65,7 @@ class StreamResolver {
       url = 'https:$url';
     }
 
-    // Skip cloud storage or dead hosters that do not provide direct media
-    if (url.contains('mega.nz') ||
-        url.contains('mega.io') ||
-        url.contains('drive.google') ||
-        url.contains('dropbox.com') ||
-        url.contains('vvide0.com') ||
-        url.contains('dood')) {
-      return [];
-    }
+    if (isUnplayableHost(url)) return [];
 
     // 1. Direct playable stream
     if (url.contains('.m3u8') || url.contains('.mp4') || url.contains('.mkv')) {
@@ -172,7 +198,11 @@ class StreamResolver {
             }
           }
 
-          final hlsUrl = meta?['hlsMasterPlaylistUrl'] as String?;
+          // The page names it `hlsManifestUrl` (seen 2026-11-10); the old key
+          // is kept in case it comes back.
+          final hlsUrl =
+              (meta?['hlsManifestUrl'] ?? meta?['hlsMasterPlaylistUrl'])
+                  as String?;
           if (hlsUrl != null && hlsUrl.isNotEmpty) {
             sources.add(
               StreamSource(

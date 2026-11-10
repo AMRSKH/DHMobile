@@ -17,6 +17,7 @@ import '../../core/l10n/app_strings.dart';
 import '../library/library_controller.dart';
 import '../settings/settings_controller.dart';
 import 'player_controller.dart';
+import 'prefetch.dart';
 import 'source_selection.dart';
 import 'widgets/gesture_overlay.dart';
 import 'widgets/player_controls.dart';
@@ -66,6 +67,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // A fresh resolution of the sources is running. An empty answer then keeps
   // the old list and shows Retry Stream (QA TASK-025).
   bool _reresolving = false;
+  // Keeps the next episode's servers resolved while this one plays, so
+  // "Next" starts at once (TASK-031). Closed when the episode changes.
+  ProviderSubscription<AsyncValue<List<StreamSource>>>? _prefetch;
+  String? _prefetchedId;
+  DateTime? _prefetchedAt;
   bool _isPlaying = false;
   bool _isBuffering = true;
   Duration _position = Duration.zero;
@@ -130,6 +136,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _prefetch?.close();
     _saveProgress(syncHistory: true);
     _saveProgressTimer?.cancel();
     _hideControlsTimer?.cancel();
@@ -582,6 +589,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (value.isPlaying) {
       _loadHasPlayed = true;
       _notePlaying(value.position);
+      _maybePrefetchNext(value.position, value.duration);
     }
     setState(() {
       _isPlaying = value.isPlaying;
@@ -666,6 +674,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     if (value.isPlaying) {
       _notePlaying(value.position);
+      _maybePrefetchNext(value.position, value.duration);
       _bufferingWatchdog?.cancel();
       if (!wasPlaying) {
         // Playback just started: the control overlay is opaque to taps and
@@ -777,6 +786,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
   }
 
+  /// Starts resolving the next episode's servers in the background, once.
+  void _maybePrefetchNext(Duration position, Duration duration) {
+    if (_prefetch != null) return;
+    final next = _currentEpisodeIndex + 1;
+    if (next >= widget.episodes.length) return;
+    if (!shouldPrefetchNext(position: position, duration: duration)) return;
+    final episode = widget.episodes[next];
+    DLog.event('player.prefetch', 'ep=${episode.number.toInt()}');
+    _prefetchedId = episode.id;
+    _prefetchedAt = DateTime.now();
+    // An autoDispose provider stays alive while it has a listener.
+    _prefetch = ref.listenManual(episodeStreamsProvider(episode.id), (_, _) {});
+  }
+
   void _handleNextEpisode() {
     _saveProgress(syncHistory: true);
     DLog.event(
@@ -790,6 +813,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // that position would then be saved or resumed on the new episode.
       _disposePlayers();
       _menuOpen = false;
+      final nextId = widget.episodes[_currentEpisodeIndex + 1].id;
+      // Only a prefetched list that has servers and is still fresh is used.
+      // An empty answer (network gone) or old URLs (expired, or bound to an
+      // old IP) are resolved again, as before prefetching (TASK-031 QA).
+      final prefetched =
+          _prefetchedId == nextId &&
+          usePrefetched(
+            sources: ref.read(episodeStreamsProvider(nextId)).value,
+            fetchedAt: _prefetchedAt,
+            now: DateTime.now(),
+          );
+      final subscription = _prefetch;
+      _prefetch = null;
+      _prefetchedId = null;
+      _prefetchedAt = null;
       setState(() {
         _currentEpisodeIndex++;
         _autoReresolves = 0;
@@ -800,7 +838,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _position = Duration.zero;
         _duration = Duration.zero;
       });
-      ref.invalidate(episodeStreamsProvider(_currentEpisode.id));
+      DLog.event('player.next', 'prefetched=$prefetched');
+      if (prefetched) {
+        // build() now watches the prefetched list, so the background
+        // listener can go once that frame is built.
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => subscription?.close(),
+        );
+      } else {
+        subscription?.close();
+        ref.invalidate(episodeStreamsProvider(_currentEpisode.id));
+      }
     }
   }
 

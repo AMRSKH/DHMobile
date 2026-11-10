@@ -462,4 +462,56 @@ void main() {
       expect(hasRealProgress(from: start, now: Duration.zero), isFalse);
     });
   });
+
+  group('adaptive start for 2K and 4K', () {
+    StreamSource s(String quality, String url, [String? server]) =>
+        StreamSource(url: url, quality: quality, server: server);
+
+    final sources = [
+      s('1080p', 'https://cdn.test/1080.mp4', 'Hardsub English Ok.ru'),
+      s('Auto HLS', 'https://cdn.test/master.m3u8', 'Hardsub English Ok.ru'),
+      s('720p', 'https://cdn.test/720.mp4', 'Hardsub English Ok.ru'),
+    ];
+
+    test('4K and 2K start on the adaptive stream', () {
+      expect(
+        pickInitialSourceIndex(sources, quality: '2160p', subtitle: 'None'),
+        1,
+      );
+      expect(
+        pickInitialSourceIndex(sources, quality: '1440p', subtitle: 'None'),
+        1,
+      );
+    });
+
+    test('lower qualities keep their fixed file', () {
+      expect(
+        pickInitialSourceIndex(sources, quality: '720p', subtitle: 'None'),
+        2,
+      );
+      expect(
+        pickInitialSourceIndex(sources, quality: '1080p', subtitle: 'None'),
+        0,
+      );
+    });
+
+    test('an adaptive stream of an other language is not taken', () {
+      final mixed = [
+        s('1080p', 'https://cdn.test/a.mp4', 'Hardsub English Ok.ru'),
+        s('Auto HLS', 'https://cdn.test/b.m3u8', 'Hardsub Indonesia Ok.ru'),
+      ];
+      expect(
+        pickInitialSourceIndex(mixed, quality: '2160p', subtitle: 'English'),
+        0,
+      );
+    });
+
+    test('a single HLS variant is not adaptive', () {
+      expect(isAdaptiveStream(s('720p', 'https://cdn.test/720.m3u8')), isFalse);
+      expect(
+        isAdaptiveStream(s('Multi-Bitrate (HLS)', 'https://cdn.test/m.m3u8')),
+        isTrue,
+      );
+    });
+  });
 }

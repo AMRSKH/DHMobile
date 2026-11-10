@@ -266,10 +266,18 @@ class AnimeStreamSiteProvider implements DonghuaStreamProvider {
       DLog.event('streams.page', '$id $episodeId failed: $e');
     }
 
+    // The page often names one embed twice ("Primary Embed" and its menu
+    // entry). Resolve each URL once; the first, named entry wins (TASK-031).
+    final seenUrls = <String>{};
+    final candidates = [
+      for (final c in rawCandidates)
+        if (seenUrls.add(c.url)) c,
+    ];
+
     final List<StreamSource> resolvedSources = [];
-    if (rawCandidates.isNotEmpty) {
+    if (candidates.isNotEmpty) {
       final results = await Future.wait(
-        rawCandidates.map((c) async {
+        candidates.map((c) async {
           try {
             final resolved = await resolver.resolve(
               c.url,

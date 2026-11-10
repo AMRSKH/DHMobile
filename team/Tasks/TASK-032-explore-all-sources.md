@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-032
-Status: In Review
+Status: Completed
 
 # TASK-032: Explore lists from every source
 
@@ -71,4 +71,4 @@ Search's initial list are unchanged.
 ## Git Commit
 
 - Commit Message: `feat(explore): list shows from every source [TASK-032]`
-- Commit Hash:
+- Commit Hash: 90f978b

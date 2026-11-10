@@ -112,4 +112,42 @@ void main() {
 
     expect(result, isEmpty);
   });
+
+  test('keeps OK.ru CDN streams without a probe, in list order', () async {
+    // Every request fails: only the trusted OK.ru URLs survive, and no probe
+    // was needed for them.
+    final filter = _filterWith({});
+
+    final result = await filter.filter(const [
+      StreamSource(url: 'https://ok6-30.vkuser.net/?expires=1&id=1'),
+      StreamSource(url: 'https://cdn.test/dead.mp4'),
+      StreamSource(url: 'https://vd296.okcdn.ru/?expires=1&id=2'),
+    ]);
+
+    expect(result.map((s) => s.url), [
+      'https://ok6-30.vkuser.net/?expires=1&id=1',
+      'https://vd296.okcdn.ru/?expires=1&id=2',
+    ]);
+  });
+
+  test('trusts only the OK.ru hosts themselves', () {
+    expect(
+      StreamSourceFilter.isTrusted(
+        const StreamSource(url: 'https://x.okcdn.ru/v'),
+      ),
+      isTrue,
+    );
+    expect(
+      StreamSourceFilter.isTrusted(
+        const StreamSource(url: 'https://okcdn.ru.evil.test/v'),
+      ),
+      isFalse,
+    );
+    expect(
+      StreamSourceFilter.isTrusted(
+        const StreamSource(url: 'https://notvkuser.net/v'),
+      ),
+      isFalse,
+    );
+  });
 }
