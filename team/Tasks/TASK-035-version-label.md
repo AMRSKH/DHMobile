@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-035
-Status: In Review
+Status: Completed
 
 # TASK-035: About version label without the build number
 
@@ -43,7 +43,7 @@ Reviewed in the second QA round of TASK-031/033/034 (independent `qa-review` sub
 ## Git Commit
 
 - Commit Message: `fix(settings): show the version without the build number [TASK-035]`
-- Commit Hash:
+- Commit Hash: 104b0f1
 
 ## Notes and Limitations
 

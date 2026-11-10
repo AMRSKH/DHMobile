@@ -116,6 +116,17 @@ class ExploreScreen extends ConsumerWidget {
         return _seriesGrid(state.newSeries, controller, s, 'newSeries');
       case ExploreCategory.popular:
         return _seriesGrid(state.popular, controller, s, 'popular');
+      case ExploreCategory.completed:
+        return Column(
+          children: [
+            // Later pages are still coming: a thin bar instead of a skeleton.
+            if (state.completedLoadingMore && state.completed.hasValue)
+              const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: _seriesGrid(state.completed, controller, s, 'completed'),
+            ),
+          ],
+        );
     }
   }
 
@@ -154,6 +165,7 @@ class _CategoryRow extends StatelessWidget {
     ExploreCategory.schedule: S.categorySchedule,
     ExploreCategory.newSeries: S.categoryNewSeries,
     ExploreCategory.popular: S.categoryPopular,
+    ExploreCategory.completed: S.categoryCompleted,
   };
 
   @override

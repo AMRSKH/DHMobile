@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:donghua_player/data/providers/anime_stream_site_provider.dart';
+import 'package:donghua_player/data/providers/animexin_listing_parser.dart';
 import 'package:donghua_player/data/providers/multi_source_provider.dart';
 import 'package:donghua_player/domain/models/content_source.dart';
 import 'package:donghua_player/domain/models/episode.dart';
@@ -58,6 +59,14 @@ class _FakeSite extends AnimeStreamSiteProvider {
   @override
   Future<List<Show>> popular() =>
       onPopular?.call() ?? Future.error(const FormatException('no page'));
+
+  /// The completed pages this fake site answers, or an error when null.
+  Stream<List<Show>> Function()? onCompletedPages;
+
+  @override
+  Stream<List<Show>> completedPages() =>
+      onCompletedPages?.call() ??
+      Stream.error(const FormatException('no completed page'));
 
   @override
   Future<List<Show>> newSeries() => popular();
@@ -528,5 +537,183 @@ void main() {
 
       expect((await provider.popular()).map((s) => s.title), ['Gamma']);
     });
+  });
+
+  group('completed series', () {
+    String listing(List<String> slugs, {required bool next}) {
+      final cards = [
+        for (final slug in slugs)
+          '<article class="bs"><div class="bsx">'
+              '<a href="https://donghuaworld.com/anime/$slug/" title="$slug">'
+              '<div class="epx">Completed</div></a></div></article>',
+      ].join();
+      final link = next
+          ? '<div class="hpage"><a href="?page=2" class="r">Next <i></i></a></div>'
+          : '';
+      return '<html><body><div class="listupd">$cards</div>$link</body></html>';
+    }
+
+    test('hasNextPage finds the theme\'s Next link only', () {
+      expect(hasNextPage(listing(['a'], next: true)), isTrue);
+      expect(hasNextPage(listing(['a'], next: false)), isFalse);
+      expect(hasNextPage('<a class="l">Prev</a>'), isFalse);
+    });
+
+    test('a site follows Next until the last page', () async {
+      final asked = <int>[];
+      final site = _siteWith((options) {
+        final page = int.parse('${options.uri.queryParameters['page']}');
+        asked.add(page);
+        expect(options.uri.queryParameters['status'], 'completed');
+        return switch (page) {
+          1 => listing(['a', 'b'], next: true),
+          2 => listing(['b', 'c'], next: false),
+          _ => fail('page $page should not be asked'),
+        };
+      });
+
+      final pages = await site.completedPages().toList();
+
+      expect(asked, [1, 2]);
+      expect(pages.map((p) => p.map((s) => s.title).toList()), [
+        ['a', 'b'],
+        ['c'],
+      ]);
+      expect((await site.completed().last).map((s) => s.title), [
+        'a',
+        'b',
+        'c',
+      ]);
+    });
+
+    test(
+      'a failing later page ends the site, a failing first page fails',
+      () async {
+        final later = _siteWith((options) {
+          if (options.uri.queryParameters['page'] == '1') {
+            return listing(['a'], next: true);
+          }
+          throw DioException(requestOptions: options, message: 'down');
+        });
+        expect((await later.completedPages().toList()), hasLength(1));
+
+        final first = _siteWith(
+          (options) => throw DioException(requestOptions: options),
+        );
+        await expectLater(first.completedPages().toList(), throwsA(anything));
+      },
+    );
+
+    test('every site at once, merged, a failing site left out', () async {
+      final dw = StreamController<List<Show>>();
+      final provider = MultiSourceStreamProvider(
+        sources: [
+          _FakeSite('ax', onSearch: (_) async => const [])
+            ..onCompletedPages = () => Stream.value([
+              _show('ax', '1', 'Alpha'),
+              _show('ax', '2', 'Beta'),
+            ]),
+          _FakeSite('dw', onSearch: (_) async => const [])
+            ..onCompletedPages = () => dw.stream,
+          // No completed pages: an error, left out.
+          _FakeSite('ds', onSearch: (_) async => const []),
+        ],
+      );
+
+      final events = <List<String>>[];
+      final done = provider.completed().forEach(
+        (shows) => events.add([for (final s in shows) s.title]),
+      );
+      await Future<void>.delayed(Duration.zero);
+      dw.add([_show('dw', '1', 'Gamma')]);
+      await Future<void>.delayed(Duration.zero);
+      dw.add([_show('dw', '2', 'Delta')]);
+      await dw.close();
+      await done;
+
+      expect(events.first, ['Alpha', 'Beta']);
+      expect(events.last, ['Alpha', 'Gamma', 'Beta', 'Delta']);
+    });
+
+    test('completed fails only when no site gives a page', () async {
+      final provider = MultiSourceStreamProvider(
+        sources: [
+          _FakeSite('ax', onSearch: (_) async => const []),
+          _FakeSite('dw', onSearch: (_) async => const []),
+        ],
+      );
+      await expectLater(provider.completed().toList(), throwsFormatException);
+    });
+  });
+
+  group('completed series, slow and cancelled sites', () {
+    Stream<List<Show>> slowPage(String site, Duration delay) async* {
+      await Future<void>.delayed(delay);
+      yield [_show(site, 'late', 'Late')];
+    }
+
+    Stream<List<Show>> failingFirstPage(Duration delay) async* {
+      await Future<void>.delayed(delay);
+      throw const FormatException('page 1 down');
+    }
+
+    test(
+      'a stalled site ends after listingTimeout, not after its request',
+      () async {
+        final provider = MultiSourceStreamProvider(
+          listingTimeout: const Duration(milliseconds: 50),
+          sources: [
+            _FakeSite('ax', onSearch: (_) async => const [])
+              ..onCompletedPages = () =>
+                  Stream.value([_show('ax', '1', 'Alpha')]),
+            _FakeSite('dw', onSearch: (_) async => const [])
+              ..onCompletedPages = () =>
+                  slowPage('dw', const Duration(milliseconds: 600)),
+          ],
+        );
+
+        final sw = Stopwatch()..start();
+        final last = await provider.completed().last;
+
+        expect(last.map((s) => s.title), ['Alpha']);
+        expect(sw.elapsedMilliseconds, lessThan(400));
+      },
+    );
+
+    test(
+      'cancelling while a first page fails leaves no unhandled error',
+      () async {
+        final provider = MultiSourceStreamProvider(
+          sources: [
+            _FakeSite('ax', onSearch: (_) async => const [])
+              ..onCompletedPages = () =>
+                  failingFirstPage(const Duration(milliseconds: 30)),
+          ],
+        );
+
+        final subscription = provider.completed().listen((_) {});
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await subscription.cancel();
+        // An unhandled async error from the late failure would fail the test.
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+      },
+    );
+
+    test(
+      'a timeout followed by a failing first page leaves no unhandled error',
+      () async {
+        final provider = MultiSourceStreamProvider(
+          listingTimeout: const Duration(milliseconds: 10),
+          sources: [
+            _FakeSite('ax', onSearch: (_) async => const [])
+              ..onCompletedPages = () =>
+                  failingFirstPage(const Duration(milliseconds: 40)),
+          ],
+        );
+
+        await expectLater(provider.completed().toList(), throwsA(anything));
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+      },
+    );
   });
 }

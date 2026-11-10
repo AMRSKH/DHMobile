@@ -64,6 +64,8 @@ class FakeStreamProvider implements DonghuaStreamProvider {
   Future<List<Show>> Function() onPopular;
   Future<List<Show>> Function(String query) onSearch;
   Future<List<Episode>> Function(String showId) onEpisodes;
+  Stream<List<Show>> Function() onCompleted;
+  int completedCalls = 0;
 
   int scheduleCalls = 0;
   int newSeriesCalls = 0;
@@ -77,7 +79,13 @@ class FakeStreamProvider implements DonghuaStreamProvider {
     Future<List<Show>> Function()? onPopular,
     Future<List<Show>> Function(String query)? onSearch,
     Future<List<Episode>> Function(String showId)? onEpisodes,
-  }) : onSchedule = onSchedule ?? (() async => fakeWeekOnePerDay()),
+    Stream<List<Show>> Function()? onCompleted,
+  }) : onCompleted =
+           onCompleted ??
+           (() => Stream.value([
+             fakeShow('done-1', title: 'Done One', status: 'Completed'),
+           ])),
+       onSchedule = onSchedule ?? (() async => fakeWeekOnePerDay()),
        onNewSeries =
            onNewSeries ??
            (() async => [
@@ -115,6 +123,12 @@ class FakeStreamProvider implements DonghuaStreamProvider {
   Future<List<Show>> popular() {
     popularCalls++;
     return onPopular();
+  }
+
+  @override
+  Stream<List<Show>> completed() {
+    completedCalls++;
+    return onCompleted();
   }
 
   @override

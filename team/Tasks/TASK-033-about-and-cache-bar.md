@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-033
-Status: In Review
+Status: Completed
 
 # TASK-033: New About section and a cache size bar
 
@@ -118,7 +118,7 @@ Round 2 checks: analyze clean, 261 tests passed, format clean, release build OK 
 ## Git Commit
 
 - Commit Message: `feat(settings): new About and cache size bar [TASK-033]`
-- Commit Hash:
+- Commit Hash: 104b0f1
 
 ## Notes and Limitations
 

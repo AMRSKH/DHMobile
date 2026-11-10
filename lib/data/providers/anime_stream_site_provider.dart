@@ -102,6 +102,51 @@ class AnimeStreamSiteProvider implements DonghuaStreamProvider {
   @override
   Future<List<Show>> popular() => _seriesList('popular');
 
+  /// Pages read at most by [completedPages], against a loop of "Next" links.
+  static const int maxCompletedPages = 40;
+
+  @override
+  Stream<List<Show>> completed() async* {
+    final all = <Show>[];
+    await for (final page in completedPages()) {
+      all.addAll(page);
+      yield List.unmodifiable(all);
+    }
+  }
+
+  /// The site's completed series, one event per listing page
+  /// (`/anime/?page=N&status=completed&order=update`), until a page has no
+  /// "Next" link or no new series. A failing first page is an error; a later
+  /// one ends the list (TASK-036).
+  Stream<List<Show>> completedPages() async* {
+    final seen = <String>{};
+    for (var page = 1; page <= maxCompletedPages; page++) {
+      final String html;
+      try {
+        html = await fetchPage(
+          '/anime/',
+          queryParameters: {
+            'page': page,
+            'status': 'completed',
+            'order': 'update',
+          },
+        );
+      } catch (e) {
+        if (page == 1) rethrow;
+        DLog.event('completed', '$id page $page failed, stopping: $e');
+        return;
+      }
+      final shows = [
+        for (final show in parseSeriesList(html, providerId: id))
+          if (seen.add(show.id)) show,
+      ];
+      DLog.event('completed', '$id page=$page new=${shows.length}');
+      if (shows.isEmpty) return;
+      yield shows;
+      if (!hasNextPage(html)) return;
+    }
+  }
+
   /// The first page of the series listing in the given order. A failure is
   /// thrown, so the screen can show it with a retry.
   Future<List<Show>> _seriesList(String order) async {

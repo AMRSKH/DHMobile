@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/schedule_entry.dart';
 import '../../domain/models/show.dart';
 import '../search/search_controller.dart';
 import '../../core/debug_log.dart';
 
-enum ExploreCategory { schedule, newSeries, popular }
+enum ExploreCategory { schedule, newSeries, popular, completed }
 
 class ExploreState {
   final ExploreCategory category;
@@ -17,12 +19,20 @@ class ExploreState {
   final AsyncValue<List<Show>> newSeries;
   final AsyncValue<List<Show>> popular;
 
+  /// Every completed series so far; grows while pages arrive (TASK-036).
+  final AsyncValue<List<Show>> completed;
+
+  /// More completed pages are still being read.
+  final bool completedLoadingMore;
+
   const ExploreState({
     required this.category,
     required this.weekday,
     this.schedule = const AsyncValue.loading(),
     this.newSeries = const AsyncValue.loading(),
     this.popular = const AsyncValue.loading(),
+    this.completed = const AsyncValue.loading(),
+    this.completedLoadingMore = false,
   });
 
   /// The shows of the selected weekday, while the schedule is loaded.
@@ -36,6 +46,8 @@ class ExploreState {
     AsyncValue<Map<int, List<ScheduleEntry>>>? schedule,
     AsyncValue<List<Show>>? newSeries,
     AsyncValue<List<Show>>? popular,
+    AsyncValue<List<Show>>? completed,
+    bool? completedLoadingMore,
   }) {
     return ExploreState(
       category: category ?? this.category,
@@ -43,6 +55,8 @@ class ExploreState {
       schedule: schedule ?? this.schedule,
       newSeries: newSeries ?? this.newSeries,
       popular: popular ?? this.popular,
+      completed: completed ?? this.completed,
+      completedLoadingMore: completedLoadingMore ?? this.completedLoadingMore,
     );
   }
 }
@@ -60,10 +74,14 @@ class ExploreController extends Notifier<ExploreState> {
   // Categories that were asked for at least once.
   final Set<ExploreCategory> _started = {};
 
+  // The running read of the completed pages; a refresh replaces it.
+  StreamSubscription<List<Show>>? _completedReading;
+
   @override
   ExploreState build() {
     _requests.clear();
     _started.clear();
+    ref.onDispose(() => _completedReading?.cancel());
     Future.microtask(() {
       if (ref.mounted) _load(ExploreCategory.schedule);
     });
@@ -117,6 +135,49 @@ class ExploreController extends Notifier<ExploreState> {
         if (!isCurrent()) return;
         state = state.copyWith(popular: result);
         _log(category, result, (shows) => shows.length);
+      case ExploreCategory.completed:
+        // Not awaited: a cancel completes only when each site's request in
+        // flight ends, and isCurrent() already drops the old read's events
+        // (QA TASK-036 M1).
+        unawaited(_completedReading?.cancel());
+        state = state.copyWith(
+          completed: const AsyncValue.loading(),
+          completedLoadingMore: true,
+        );
+        _completedReading = provider.completed().listen(
+          (shows) {
+            if (!isCurrent()) return;
+            state = state.copyWith(completed: AsyncValue.data(shows));
+          },
+          onError: (Object e, StackTrace st) {
+            if (!isCurrent()) return;
+            DLog.error('explore.completed', e, st);
+            // A list already on screen stays; only no list at all is an
+            // error with Retry (QA TASK-036).
+            state = state.copyWith(
+              completed: state.completed.hasValue
+                  ? null
+                  : AsyncValue.error(e, st),
+              completedLoadingMore: false,
+            );
+          },
+          onDone: () {
+            if (!isCurrent()) return;
+            // The error of a stream that failed stays on screen: done comes
+            // right after it (QA TASK-036 H1).
+            if (state.completed.hasError && !state.completed.hasValue) {
+              state = state.copyWith(completedLoadingMore: false);
+              return;
+            }
+            final shows = state.completed.value;
+            DLog.event('explore.completed', 'count=${shows?.length ?? 0}');
+            state = state.copyWith(
+              // No completed series at all, without an error: an empty list.
+              completed: shows == null ? const AsyncValue.data([]) : null,
+              completedLoadingMore: false,
+            );
+          },
+        );
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:donghua_player/core/widgets/skeleton.dart';
 import 'package:donghua_player/core/widgets/underline_tab_bar.dart';
 import 'package:donghua_player/data/storage/storage_service.dart';
 import 'package:donghua_player/domain/models/schedule_entry.dart';
+import 'package:donghua_player/domain/models/show.dart';
 import 'package:donghua_player/features/detail/detail_screen.dart';
 import 'package:donghua_player/features/explore/explore_controller.dart';
 import 'package:donghua_player/features/explore/explore_screen.dart';
@@ -341,7 +342,14 @@ void main() {
 
     expect(_tabSelected(tester, 'Popular'), isTrue);
     expect(find.text('Popular One'), findsOneWidget);
-    expect(find.text('Completed'), findsOneWidget);
+    // The status line of the card; "Completed" is also a tab label now.
+    expect(
+      find.descendant(
+        of: find.byType(GridView),
+        matching: find.text('Completed'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('New One'), findsNothing);
     expect(fake.popularCalls, 1);
 
@@ -564,5 +572,98 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
       '',
     );
+  });
+
+  testWidgets('Completed lists the series as their pages arrive', (
+    tester,
+  ) async {
+    // Closed inside the test; a tearDown close() would wait for a done event
+    // that the test's fake time never delivers.
+    final pages = StreamController<List<Show>>();
+    final fake = FakeStreamProvider(
+      onSchedule: () async => fakeWeek(),
+      onCompleted: () => pages.stream,
+    );
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+
+    await tester.tap(find.text('Completed').first);
+    await _wait(tester);
+    expect(fake.completedCalls, 1);
+    expect(find.byType(SkeletonPosterGrid), findsOneWidget);
+
+    pages.add([fakeShow('c1', title: 'First Page Show')]);
+    await _wait(tester);
+    expect(find.text('First Page Show'), findsOneWidget);
+    // More pages are coming: the thin bar shows.
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    pages.add([
+      fakeShow('c1', title: 'First Page Show'),
+      fakeShow('c2', title: 'Second Page Show'),
+    ]);
+    // close() completes only after the done event is delivered, which in
+    // a widget test needs a pump, so it is not awaited here.
+    unawaited(pages.close());
+    await _wait(tester);
+    expect(find.text('Second Page Show'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+
+    // Switching back and forth does not read the pages again.
+    await tester.tap(find.text('Popular'));
+    await _wait(tester);
+    await tester.tap(find.text('Completed').first);
+    await _wait(tester);
+    expect(fake.completedCalls, 1);
+  });
+
+  testWidgets('Completed shows the error with Retry when every site fails', (
+    tester,
+  ) async {
+    var calls = 0;
+    final fake = FakeStreamProvider(
+      onSchedule: () async => fakeWeek(),
+      onCompleted: () {
+        calls++;
+        // Like MultiSourceStreamProvider: an error, then done.
+        return calls == 1
+            ? Stream<List<Show>>.error(const FormatException('all down'))
+            : Stream.value([fakeShow('ok', title: 'Back Again')]);
+      },
+    );
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+
+    await tester.tap(find.text('Completed').first);
+    await _wait(tester);
+
+    expect(find.text('Nothing to show yet.'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await _wait(tester);
+    expect(find.text('Back Again'), findsOneWidget);
+  });
+
+  testWidgets('a failing later page keeps the list on screen', (tester) async {
+    final pages = StreamController<List<Show>>();
+    final fake = FakeStreamProvider(
+      onSchedule: () async => fakeWeek(),
+      onCompleted: () => pages.stream,
+    );
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+    await tester.tap(find.text('Completed').first);
+    await _wait(tester);
+
+    pages.add([fakeShow('c1', title: 'Kept Show')]);
+    await _wait(tester);
+    pages.addError(const FormatException('page 2 down'));
+    unawaited(pages.close());
+    await _wait(tester);
+
+    expect(find.text('Kept Show'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 }

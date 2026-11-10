@@ -106,6 +106,97 @@ class MultiSourceStreamProvider implements DonghuaStreamProvider {
   Future<List<Show>> popular() async =>
       mergeSearchResults(await _fromEverySource('popular', (s) => s.popular()));
 
+  /// Every source's completed series at once, merged like [popular]. Each
+  /// event is the whole merged list so far; sites run in parallel, the pages
+  /// of one site one after another. A site that fails or stalls for
+  /// [listingTimeout] is left out; only when no site gave a single page is
+  /// the stream an error (TASK-036).
+  @override
+  Stream<List<Show>> completed() {
+    final perSource = [for (final _ in sources) <Show>[]];
+    final subscriptions = <StreamSubscription<List<Show>>>[];
+    late final StreamController<List<Show>> controller;
+    var open = sources.length;
+    var anyPage = false;
+    Object? firstError;
+    StackTrace? firstStack;
+
+    void finishOne() {
+      open--;
+      if (open > 0 || controller.isClosed) return;
+      DLog.event(
+        'explore.multi',
+        'completed done total=${perSource.fold<int>(0, (n, l) => n + l.length)}',
+      );
+      if (!anyPage) {
+        controller.addError(
+          firstError ?? StateError('No source could read completed'),
+          firstStack ?? StackTrace.current,
+        );
+      }
+      controller.close();
+    }
+
+    // A cancelled site's late error ends up in its cancel future; log it so
+    // it never becomes an unhandled async error (QA TASK-036 N2).
+    Future<void> quietCancel(StreamSubscription<List<Show>> s, String id) {
+      return s.cancel().catchError((Object e) {
+        DLog.event('explore.multi', 'completed $id after cancel: $e');
+      });
+    }
+
+    controller = StreamController<List<Show>>(
+      onListen: () {
+        for (var i = 0; i < sources.length; i++) {
+          final source = sources[i];
+          // Without cancelOnError a timeout reaches onError at once, not
+          // only after the site's request in flight ends (QA TASK-036 N1).
+          // The flag lets each site finish exactly once.
+          var finished = false;
+          late final StreamSubscription<List<Show>> subscription;
+          subscription = source
+              .completedPages()
+              .timeout(listingTimeout)
+              .listen(
+                (page) {
+                  if (finished) return;
+                  anyPage = true;
+                  perSource[i].addAll(page);
+                  controller.add(mergeSearchResults(perSource));
+                },
+                onError: (Object e, StackTrace st) {
+                  if (finished) return;
+                  finished = true;
+                  DLog.event(
+                    'explore.multi',
+                    'completed ${source.id} stopped: $e',
+                  );
+                  firstError ??= e;
+                  firstStack ??= st;
+                  finishOne();
+                  unawaited(quietCancel(subscription, source.id));
+                },
+                onDone: () {
+                  if (finished) return;
+                  finished = true;
+                  finishOne();
+                },
+              );
+          subscriptions.add(subscription);
+        }
+      },
+      // Every site at once, in the background: a returned future would hold
+      // back the done event (and a listener's cancel) until each site's
+      // request in flight ends (QA TASK-036 M1, N1).
+      onCancel: () {
+        for (var i = 0; i < subscriptions.length; i++) {
+          unawaited(quietCancel(subscriptions[i], sources[i].id));
+        }
+      },
+    );
+    return controller.stream;
+  }
+
   /// [read] of every source at once, in source order, without the sources
   /// that failed or timed out. Throws the first error when all of them did.
   Future<List<T>> _fromEverySource<T>(

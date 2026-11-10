@@ -74,6 +74,15 @@ Map<int, List<ScheduleEntry>> parseSchedule(
   return result;
 }
 
+/// True when a listing page links to a next page, the theme's
+/// `<a class="r">Next</a>` (TASK-036).
+bool hasNextPage(String html) {
+  return RegExp(
+    r'''<a\b[^>]*class=["']r["'][^>]*>\s*Next''',
+    caseSensitive: false,
+  ).hasMatch(html);
+}
+
 /// Parses a series listing, `/anime/?order=popular` or
 /// `/anime/?order=latest`, in the order of the page.
 List<Show> parseSeriesList(String html, {required String providerId}) {
