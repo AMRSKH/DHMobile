@@ -7,10 +7,10 @@ class AppInfo {
   static const String name = 'DHMobile';
 
   /// The part of `version:` in `pubspec.yaml` before the `+`.
-  static const String version = '1.0.3';
+  static const String version = '1.0.4';
 
   /// The part of `version:` in `pubspec.yaml` after the `+`.
-  static const String buildNumber = '4';
+  static const String buildNumber = '5';
 
   /// The player the app really uses. See `_useFallbackPlayer` in
   /// `player_screen.dart`.

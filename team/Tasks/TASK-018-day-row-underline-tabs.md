@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-018
-Status: In Review
+Status: Completed
 
 # TASK-018: Underline tabs for the Explore day row
 
@@ -112,7 +112,7 @@ No document affected: `AGENTS.md` already lists the underline tab bar under `cor
 ## Git Commit
 
 - Commit Message: feat(explore): use underline tabs for the day row [TASK-018]
-- Commit Hash:
+- Commit Hash: 4f1e8ee
 
 ## Final Report
 

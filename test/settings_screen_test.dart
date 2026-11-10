@@ -81,7 +81,7 @@ void main() {
 
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('DHMobile'), findsOneWidget);
-    expect(find.text('Version 1.0.3 (build 4)'), findsOneWidget);
+    expect(find.text('Version 1.0.4 (build 5)'), findsOneWidget);
     expect(find.text('Player'), findsOneWidget);
     expect(find.text('video_player (ExoPlayer)'), findsOneWidget);
     expect(find.text('Content source'), findsOneWidget);
