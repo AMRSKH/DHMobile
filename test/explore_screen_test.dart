@@ -6,6 +6,7 @@ import 'package:donghua_player/core/widgets/underline_tab_bar.dart';
 import 'package:donghua_player/data/storage/storage_service.dart';
 import 'package:donghua_player/domain/models/schedule_entry.dart';
 import 'package:donghua_player/features/detail/detail_screen.dart';
+import 'package:donghua_player/features/explore/explore_controller.dart';
 import 'package:donghua_player/features/explore/explore_screen.dart';
 import 'package:donghua_player/features/library/library_controller.dart';
 import 'package:donghua_player/features/search/search_controller.dart';
@@ -21,10 +22,11 @@ Future<void> _pumpExplore(
   WidgetTester tester,
   FakeStreamProvider fake, {
   StorageService? storage,
+  double width = 600,
 }) async {
   // Wide enough for the whole day row in the test font, whose letters are
   // much wider than those of a real font.
-  tester.view.physicalSize = const Size(600, 1000);
+  tester.view.physicalSize = Size(width, 1000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -148,9 +150,18 @@ void main() {
     expect(find.text('Day $today Show'), findsOneWidget);
     expect(find.text('EP $today · Released'), findsOneWidget);
 
+    expect(_tabSelected(tester, _weekdays[today - 1]), isTrue);
+
     for (var day = 1; day <= 7; day++) {
       await tester.tap(find.text(_weekdays[day - 1]));
       await _wait(tester);
+      for (var other = 1; other <= 7; other++) {
+        expect(
+          _tabSelected(tester, _weekdays[other - 1]),
+          other == day,
+          reason: 'after a tap on ${_weekdays[day - 1]}',
+        );
+      }
       expect(find.text('Day $day Show'), findsOneWidget);
       expect(
         find.textContaining('Day '),
@@ -162,6 +173,118 @@ void main() {
     expect(fake.scheduleCalls, 1);
     expect(fake.newSeriesCalls, 0);
     expect(fake.popularCalls, 0);
+  });
+
+  testWidgets('the day row is an underline tab bar without separators', (
+    tester,
+  ) async {
+    final fake = FakeStreamProvider();
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+
+    // The category row and the day row.
+    expect(find.byType(UnderlineTabBar), findsNWidgets(2));
+    final dayRow = find.ancestor(
+      of: find.text('Mon'),
+      matching: find.byType(UnderlineTabBar),
+    );
+    expect(dayRow, findsOneWidget);
+    for (final label in _weekdays) {
+      expect(
+        find.descendant(of: dayRow, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('|'), findsNothing);
+    expect(find.textContaining('|'), findsNothing);
+    expect(
+      find.descendant(of: dayRow, matching: find.byType(InkWell)),
+      findsNothing,
+    );
+    // Only the selected day has the red line in the day row.
+    expect(
+      find.descendant(
+        of: dayRow,
+        matching: find.byKey(UnderlineTabBar.indicatorKey),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the selected day is in view in a narrow Khmer day row, at '
+      'start and after a change', (tester) async {
+    final storage = StorageService();
+    await storage.setLanguageCode('km');
+    final container = ProviderContainer(
+      overrides: [
+        streamProvider.overrideWithValue(FakeStreamProvider()),
+        storageServiceProvider.overrideWithValue(storage),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(exploreControllerProvider.notifier);
+    // Sunday, the far end of the row, whatever day the test runs on.
+    controller.selectWeekday(7);
+
+    // Narrower than the seven Khmer labels in the test font.
+    tester.view.physicalSize = const Size(320, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: ExploreScreen()),
+      ),
+    );
+    await _wait(tester);
+    expect(tester.takeException(), isNull);
+
+    const khmerDays = [
+      'ច័ន្ទ',
+      'អង្គារ',
+      'ពុធ',
+      'ព្រហ',
+      'សុក្រ',
+      'សៅរ៍',
+      'អាទិត្យ',
+    ];
+    final dayRow = find.ancestor(
+      of: find.text(khmerDays.first),
+      matching: find.byType(UnderlineTabBar),
+    );
+    final row = tester.getRect(dayRow);
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: dayRow, matching: find.byType(Scrollable)),
+    );
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+
+    bool inView(String label) {
+      final tab = tester.getRect(find.text(label));
+      return tab.left >= row.left && tab.right <= row.right;
+    }
+
+    // At start: Sunday is selected and in view, Monday is off screen.
+    expect(_tabSelected(tester, khmerDays[6]), isTrue);
+    expect(inView(khmerDays[6]), isTrue);
+    expect(inView(khmerDays[0]), isFalse);
+
+    // A change without a scroll by hand: the row brings Monday in.
+    controller.selectWeekday(1);
+    await tester.pump();
+    await _wait(tester);
+    expect(_tabSelected(tester, khmerDays[0]), isTrue);
+    expect(inView(khmerDays[0]), isTrue);
+    expect(inView(khmerDays[6]), isFalse);
+    expect(find.text('Day 1 Show'), findsOneWidget);
+
+    // And back to Sunday.
+    controller.selectWeekday(7);
+    await tester.pump();
+    await _wait(tester);
+    expect(_tabSelected(tester, khmerDays[6]), isTrue);
+    expect(inView(khmerDays[6]), isTrue);
+    expect(find.text('Day 7 Show'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('lists every show of the day', (tester) async {

@@ -151,7 +151,7 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-/// Day selector: Mon | Tue | Wed | ...
+/// Day selector: the seven weekdays as underline tabs, Monday (1) first.
 class _DayRow extends StatelessWidget {
   final int selected;
   final AppStrings strings;
@@ -165,50 +165,10 @@ class _DayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 44 high: Khmer letters with marks above and below need more room than
-    // Latin text of the same size.
-    return SizedBox(
-      height: 44,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: List.generate(7, (i) {
-            final day = i + 1;
-            final isSelected = selected == day;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  onTap: () => onSelected(day),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      strings.weekdayShort(day),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white38,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-                if (i < 6)
-                  const Text(
-                    '|',
-                    style: TextStyle(color: Colors.white24, fontSize: 14),
-                  ),
-              ],
-            );
-          }),
-        ),
-      ),
+    return UnderlineTabBar(
+      labels: [for (var day = 1; day <= 7; day++) strings.weekdayShort(day)],
+      selectedIndex: selected - 1,
+      onSelected: (index) => onSelected(index + 1),
     );
   }
 }

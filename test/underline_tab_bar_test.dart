@@ -73,25 +73,34 @@ Future<void> _pumpBar(
   ValueChanged<int>? onSelected,
   double width = 600,
   bool settle = true,
+  TextDirection textDirection = TextDirection.ltr,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(
-        body: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: width,
-            child: UnderlineTabBar(
-              labels: labels,
-              selectedIndex: selected,
-              onSelected: onSelected ?? (_) {},
+      home: Directionality(
+        textDirection: textDirection,
+        child: Scaffold(
+          body: Align(
+            alignment: AlignmentDirectional.topStart,
+            child: SizedBox(
+              width: width,
+              child: UnderlineTabBar(
+                labels: labels,
+                selectedIndex: selected,
+                onSelected: onSelected ?? (_) {},
+              ),
             ),
           ),
         ),
       ),
     ),
   );
-  if (settle) await tester.pump(const Duration(milliseconds: 300));
+  if (settle) {
+    // A scroll to the active tab starts on the frame after the change, so
+    // pump that frame before letting the animations run.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
 }
 
 /// The style the visible label is painted with.
@@ -259,6 +268,19 @@ void main() {
     expect(third.left - second.right, 24);
   });
 
+  testWidgets('right to left: tabs are 24 px apart and the row starts 16 px '
+      'in from the right', (tester) async {
+    await _pumpBar(tester, textDirection: TextDirection.rtl);
+    final first = tester.getRect(_tab('Schedule'));
+    final second = tester.getRect(_tab('New Series'));
+    final third = tester.getRect(_tab('Popular'));
+    final bar = tester.getRect(find.byType(UnderlineTabBar));
+    // The first tab is on the right, the others follow to the left.
+    expect(bar.right - first.right, 16);
+    expect(first.left - second.right, 24);
+    expect(second.left - third.right, 24);
+  });
+
   testWidgets('the tap target is at least 48 px high', (tester) async {
     await _pumpBar(tester);
     for (final label in _labels) {
@@ -378,6 +400,226 @@ void main() {
     await tester.tap(last);
     expect(taps, [labels.length - 1]);
     expect(tester.takeException(), isNull);
+  });
+
+  group('keeps the active tab in view', () {
+    // Ten labels of 180 px each in the 15 px test font, in a 300 px row.
+    final labels = [for (var i = 0; i < 10; i++) 'Long label $i'];
+
+    /// Whether the whole tab of [label], with the row padding, is inside the
+    /// 300 px row.
+    void expectFullyVisible(WidgetTester tester, String label) {
+      final bar = tester.getRect(find.byType(UnderlineTabBar));
+      final rect = tester.getRect(_tab(label));
+      expect(
+        rect.left,
+        greaterThanOrEqualTo(bar.left + 16 - 0.01),
+        reason: label,
+      );
+      expect(
+        rect.right,
+        lessThanOrEqualTo(bar.right - 16 + 0.01),
+        reason: label,
+      );
+    }
+
+    testWidgets('the last tab active at start is in view after the first '
+        'frame', (tester) async {
+      await _pumpBar(
+        tester,
+        width: 300,
+        labels: labels,
+        selected: labels.length - 1,
+        settle: false,
+      );
+      // The jump happens after the first layout, without an animation.
+      await tester.pump();
+      expectFullyVisible(tester, labels.last);
+      // At the end of the row: the last tab ends at the right padding.
+      expect(tester.getRect(_tab(labels.last)).right, closeTo(300 - 16, 0.01));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a tab in the middle active at start is in view', (
+      tester,
+    ) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 5);
+      expectFullyVisible(tester, labels[5]);
+    });
+
+    testWidgets('a change to a tab off screen scrolls it into view, '
+        'animated', (tester) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 0);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      expect(scrollable.position.pixels, 0);
+      expect(tester.getRect(_tab(labels[7])).left, greaterThan(300));
+
+      await _pumpBar(
+        tester,
+        width: 300,
+        labels: labels,
+        selected: 7,
+        settle: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // Half way through the animation the row has moved, but not all the
+      // way yet.
+      final mid = scrollable.position.pixels;
+      expect(mid, greaterThan(0));
+
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(scrollable.position.pixels, greaterThan(mid));
+      expectFullyVisible(tester, labels[7]);
+      // The least scroll: the tab comes in at the right edge.
+      expect(tester.getRect(_tab(labels[7])).right, closeTo(300 - 16, 0.01));
+
+      // Back to the first tab: it comes in at the left edge.
+      await _pumpBar(tester, width: 300, labels: labels, selected: 0);
+      expect(scrollable.position.pixels, 0);
+      expectFullyVisible(tester, labels.first);
+    });
+
+    testWidgets('a change to a tab already in view does not scroll', (
+      tester,
+    ) async {
+      // Labels of 180 px: in 600 px the first two tabs are in view.
+      await _pumpBar(tester, width: 600, labels: labels, selected: 0);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      await _pumpBar(tester, width: 600, labels: labels, selected: 1);
+      expect(scrollable.position.pixels, 0);
+      expect(scrollable.position.maxScrollExtent, greaterThan(0));
+    });
+
+    testWidgets('an index out of range does nothing', (tester) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 3);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      final before = scrollable.position.pixels;
+
+      for (final index in [-1, labels.length, 99]) {
+        await _pumpBar(tester, width: 300, labels: labels, selected: index);
+        expect(tester.takeException(), isNull);
+        expect(scrollable.position.pixels, before);
+        expect(find.byKey(UnderlineTabBar.indicatorKey), findsNothing);
+      }
+
+      await _pumpBar(tester, width: 300, labels: labels, selected: -1);
+      await _pumpBar(tester, width: 300, labels: labels, selected: 99);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an index out of range at start does nothing', (tester) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 99);
+      expect(tester.takeException(), isNull);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      expect(scrollable.position.pixels, 0);
+    });
+
+    testWidgets('a row that fits never scrolls', (tester) async {
+      for (final index in [0, 2, 1, 2]) {
+        await _pumpBar(tester, selected: index);
+        expect(tester.takeException(), isNull);
+        final scrollable = tester.state<ScrollableState>(
+          find.byType(Scrollable),
+        );
+        expect(scrollable.position.pixels, 0);
+        expect(scrollable.position.maxScrollExtent, 0);
+      }
+    });
+
+    testWidgets('longer labels at the same index keep the tab in view', (
+      tester,
+    ) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 9);
+      expectFullyVisible(tester, labels[9]);
+
+      // For example a language change: every label grows, the index stays.
+      final longer = [for (var i = 0; i < 10; i++) 'Longer label $i'];
+      await _pumpBar(tester, width: 300, labels: longer, selected: 9);
+      expect(tester.takeException(), isNull);
+      expectFullyVisible(tester, longer[9]);
+    });
+
+    testWidgets('shorter labels at the same index keep the tab in view', (
+      tester,
+    ) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 4);
+      expectFullyVisible(tester, labels[4]);
+
+      final shorter = [for (var i = 0; i < 10; i++) 'Tab $i'];
+      await _pumpBar(tester, width: 300, labels: shorter, selected: 4);
+      expectFullyVisible(tester, shorter[4]);
+    });
+
+    testWidgets('a narrower row keeps the tab in view', (tester) async {
+      // In 800 px (the width of the test screen) tab 2 is in view at
+      // offset 0.
+      await _pumpBar(tester, width: 800, labels: labels, selected: 2);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      expect(scrollable.position.pixels, 0);
+      expect(tester.getRect(_tab(labels[2])).right, lessThanOrEqualTo(784));
+
+      // For example a rotation to portrait.
+      await _pumpBar(tester, width: 300, labels: labels, selected: 2);
+      expect(tester.takeException(), isNull);
+      expectFullyVisible(tester, labels[2]);
+    });
+
+    testWidgets('the same width does not scroll a row moved by hand', (
+      tester,
+    ) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 0);
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+      await tester.drag(find.byType(Scrollable), const Offset(-500, 0));
+      await tester.pump(const Duration(milliseconds: 300));
+      final moved = scrollable.position.pixels;
+      expect(moved, greaterThan(0));
+
+      // A rebuild with the same width, labels and index leaves it there.
+      await _pumpBar(tester, width: 300, labels: labels, selected: 0);
+      expect(scrollable.position.pixels, moved);
+    });
+
+    testWidgets('right to left: the last tab active at start is in view', (
+      tester,
+    ) async {
+      await _pumpBar(
+        tester,
+        width: 300,
+        labels: labels,
+        selected: labels.length - 1,
+        textDirection: TextDirection.rtl,
+      );
+      expect(tester.takeException(), isNull);
+      expectFullyVisible(tester, labels.last);
+      // The row runs right to left: the last tab ends at the left padding.
+      final bar = tester.getRect(find.byType(UnderlineTabBar));
+      expect(
+        tester.getRect(_tab(labels.last)).left,
+        closeTo(bar.left + 16, 0.01),
+      );
+
+      await _pumpBar(
+        tester,
+        width: 300,
+        labels: labels,
+        selected: 0,
+        textDirection: TextDirection.rtl,
+      );
+      expectFullyVisible(tester, labels.first);
+      expect(
+        tester.getRect(_tab(labels.first)).right,
+        closeTo(bar.right - 16, 0.01),
+      );
+    });
+
+    testWidgets('fewer labels than before do not throw', (tester) async {
+      await _pumpBar(tester, width: 300, labels: labels, selected: 9);
+      await _pumpBar(tester, width: 300, labels: labels.sublist(0, 3));
+      expect(tester.takeException(), isNull);
+      expect(find.text(labels[2]), findsOneWidget);
+      expect(find.text(labels[3]), findsNothing);
+    });
   });
 
   testWidgets('Khmer labels are not clipped', (tester) async {

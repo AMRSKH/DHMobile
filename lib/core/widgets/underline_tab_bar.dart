@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// Text color of the active tab.
 const Color underlineTabActiveColor = Color(0xFFFFFFFF);
@@ -24,8 +26,10 @@ const Duration _duration = Duration(milliseconds: 200);
 ///
 /// Every tab reserves the width of its label in the active weight, so a tab
 /// keeps its size when it becomes active or inactive. The row scrolls
-/// horizontally without a scrollbar when it does not fit.
-class UnderlineTabBar extends StatelessWidget {
+/// horizontally without a scrollbar when it does not fit, and keeps the
+/// active tab in view: at once on the first layout and when the labels or
+/// the width change, animated when [selectedIndex] changes.
+class UnderlineTabBar extends StatefulWidget {
   /// Key of the visible line under the active tab.
   static const Key indicatorKey = ValueKey('underline-tab-indicator');
 
@@ -41,23 +45,129 @@ class UnderlineTabBar extends StatelessWidget {
   });
 
   @override
+  State<UnderlineTabBar> createState() => _UnderlineTabBarState();
+}
+
+class _UnderlineTabBarState extends State<UnderlineTabBar> {
+  final ScrollController _controller = ScrollController();
+
+  /// One key per tab, so the active tab can be found after layout. Each tab
+  /// keeps its own key, so no subtree moves when the selection changes.
+  List<GlobalKey> _tabKeys = const [];
+
+  /// Width of the row at the last layout, to see a change such as a
+  /// rotation.
+  double? _lastWidth;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncKeys();
+    _revealSelectedAfterLayout(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(UnderlineTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncKeys();
+    if (oldWidget.selectedIndex != widget.selectedIndex) {
+      _revealSelectedAfterLayout(animate: true);
+    } else if (!listEquals(oldWidget.labels, widget.labels)) {
+      // Other labels, for example after a language change, move the tabs.
+      _revealSelectedAfterLayout(animate: false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _syncKeys() {
+    final count = widget.labels.length;
+    if (_tabKeys.length == count) return;
+    _tabKeys = [
+      for (var i = 0; i < count; i++)
+        i < _tabKeys.length ? _tabKeys[i] : GlobalKey(),
+    ];
+  }
+
+  void _revealSelectedAfterLayout({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _revealSelected(animate: animate);
+    });
+  }
+
+  /// Scrolls the least distance that shows the active tab with the row
+  /// padding on both sides. Does nothing when it is already visible, when
+  /// the row fits, or when [UnderlineTabBar.selectedIndex] is out of range.
+  void _revealSelected({required bool animate}) {
+    final index = widget.selectedIndex;
+    if (index < 0 || index >= _tabKeys.length) return;
+    if (!_controller.hasClients) return;
+    final box = _tabKeys[index].currentContext?.findRenderObject();
+    if (box == null || !box.attached) return;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+
+    final position = _controller.position;
+    // Offsets that put the tab at the start or at the end of the view.
+    final atStart = viewport.getOffsetToReveal(box, 0).offset;
+    final atEnd = viewport.getOffsetToReveal(box, 1).offset;
+    var target = position.pixels;
+    if (target > atStart - _horizontalPadding) {
+      target = atStart - _horizontalPadding;
+    } else if (target < atEnd + _horizontalPadding) {
+      target = atEnd + _horizontalPadding;
+    }
+    target = target.clamp(position.minScrollExtent, position.maxScrollExtent);
+    if ((target - position.pixels).abs() < 0.5) return;
+
+    if (animate) {
+      _controller.animateTo(target, duration: _duration, curve: Curves.easeOut);
+    } else {
+      _controller.jumpTo(target);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final labels = widget.labels;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A new width, for example after a rotation, can leave the active
+        // tab off screen. Only a change schedules a reveal, so this cannot
+        // loop.
+        final width = constraints.maxWidth;
+        if (_lastWidth != null && _lastWidth != width) {
+          _revealSelectedAfterLayout(animate: false);
+        }
+        _lastWidth = width;
+        return _buildRow(context, labels);
+      },
+    );
+  }
+
+  Widget _buildRow(BuildContext context, List<String> labels) {
     return ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: SingleChildScrollView(
+        controller: _controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
         child: Row(
           children: [
             for (var i = 0; i < labels.length; i++)
               Padding(
-                padding: EdgeInsets.only(
-                  right: i == labels.length - 1 ? 0 : _gap,
+                padding: EdgeInsetsDirectional.only(
+                  end: i == labels.length - 1 ? 0 : _gap,
                 ),
                 child: _UnderlineTab(
+                  key: _tabKeys[i],
                   label: labels[i],
-                  selected: i == selectedIndex,
-                  onTap: () => onSelected(i),
+                  selected: i == widget.selectedIndex,
+                  onTap: () => widget.onSelected(i),
                 ),
               ),
           ],
@@ -73,6 +183,7 @@ class _UnderlineTab extends StatelessWidget {
   final VoidCallback onTap;
 
   const _UnderlineTab({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
