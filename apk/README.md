@@ -68,6 +68,9 @@ The SHA256 of each file was unchanged by the move.
 | `DHMobile-v1.0.6-arm64-v8a.apk` | 1.0.6 | - | arm64-v8a | 61.55 MB | 2026-11-10 | `0F47ACFC81245D497ED1B6BD3827B5239B1EE9E0C238D2A9BE38470C40F78DDA` |
 | `DHMobile-v1.0.6-armeabi-v7a.apk` | 1.0.6 | - | armeabi-v7a | 54.80 MB | 2026-11-10 | `D62D14001D5BBCE95CA490B47A7E6AA66D34278A1FEEDF005BBD7A99616C8E35` |
 | `DHMobile-v1.0.6-x86_64.apk` | 1.0.6 | - | x86_64 | 68.72 MB | 2026-11-10 | `A2B2C888E83FE2523BA3A349C0B9CE0D8080A2C72BC6FA244280CB2887351D0C` |
+| `DHMobile-v1.0.7-arm64-v8a.apk` | 1.0.7 | - | arm64-v8a | 61.55 MB | 2026-11-10 | `23FE3E0CE4A1777CA6B769DA7CB316092DB50E635139F1B9009A6011E16B83DE` |
+| `DHMobile-v1.0.7-armeabi-v7a.apk` | 1.0.7 | - | armeabi-v7a | 54.80 MB | 2026-11-10 | `BD4E47C7979CF0C13589381A5D117FCF112D8E638B5CB027CB895B72BBA10B73` |
+| `DHMobile-v1.0.7-x86_64.apk` | 1.0.7 | - | x86_64 | 68.72 MB | 2026-11-10 | `194C5515F18296ECFE76514F218BF4C2EF6CCC4BF8A4169EB1234B7107E7B221` |
 
 Sizes are bytes divided by 1 MiB, rounded to 2 decimals. "Built" is the file
 timestamp of the copied build output.
@@ -128,15 +131,28 @@ on the SM-A546E. They upgrade an installed v1.0.5 of the same ABI.
 
 Same build command as v1.0.3.
 
+## v1.0.7 provenance
+
+The three v1.0.7 files were built on 2026-11-10 (version `1.0.7+8`) in
+TASK-026, from commit `1ddf4a4` (TASK-025) plus the version change. They add
+the automatic re-resolve of an episode's sources when every server fails, and
+a Retry Stream that fetches fresh URLs. Each copy has the same SHA256 as its
+build output. `aapt dump badging` reports version name `1.0.7`, version codes
+1008 (armeabi-v7a), 2008 (arm64-v8a), 4008 (x86_64), one ABI each. The
+arm64-v8a file was installed on the SM-A546E with `adb install -r` (app data
+kept). They upgrade an installed v1.0.6 of the same ABI.
+
+Same build command as v1.0.3.
+
 ## Compatibility warning
 
 - The v1.0.0 and v1.0.1 APKs use application id `dev.amscenter.donghua_player`.
-- The v1.0.3 to v1.0.6 APKs use application id
+- The v1.0.3 to v1.0.7 APKs use application id
   `dhmobile.amscenter.dev` and a debug signing key.
 
-Therefore v1.0.3 to v1.0.6 do not upgrade an installed v1.0.x app: Android
+Therefore v1.0.3 to v1.0.7 do not upgrade an installed v1.0.x app: Android
 treats them as two different apps. Both can be installed at the same time, side
 by side. Removing one does not remove the other or its stored data.
 
-Do not publish these APKs. They are local test builds, and v1.0.3 to v1.0.6
+Do not publish these APKs. They are local test builds, and v1.0.3 to v1.0.7
 are not signed with a release key.

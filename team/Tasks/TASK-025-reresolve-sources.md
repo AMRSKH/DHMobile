@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-025
-Status: In Review
+Status: Completed
 
 # TASK-025: Resolve the sources again when every server fails
 
@@ -108,7 +108,7 @@ failover, which still holds.
 ## Git Commit
 
 - Commit Message: `feat(player): resolve sources again when every server fails [TASK-025]`
-- Commit Hash:
+- Commit Hash: 1ddf4a4
 
 ## Final Report
 
