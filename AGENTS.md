@@ -118,7 +118,7 @@ These rules bind every agent. Documentation is not a security boundary: also res
 - Bypass a security restriction or skip a hook (`--no-verify`).
 - Overwrite unrelated user changes, or commit them.
 
-**Known issue:** `lib/main.dart` accepts all TLS certificates (`badCertificateCallback` returns `true`). Do not copy this pattern. Flag it whenever you touch networking.
+**TLS:** certificates are checked (the old accept-all `badCertificateCallback` was removed in TASK-028, and `minSdk` is 26). Never add an accept-all callback again.
 
 ## Git workflow
 

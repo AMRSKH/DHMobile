@@ -21,7 +21,10 @@ android {
 
     defaultConfig {
         applicationId = "dhmobile.amscenter.dev"
-        minSdk = 24
+        // Android 8+. Since TASK-028 the app checks TLS certificates, and
+        // older trust stores may lack the roots of some sources (OK.ru:
+        // HARICA, LMAnime: Let's Encrypt via ISRG Root X1).
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

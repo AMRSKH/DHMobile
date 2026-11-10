@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-027
-Status: In Review
+Status: Completed
 
 # TASK-027: ExoPlayer as the default player
 
@@ -51,7 +51,7 @@ chose VLC keep it. Remaining `PlayerEngine.vlc` uses are real engine checks.
 ## Git Commit
 
 - Commit Message: `feat(player): make ExoPlayer the default player [TASK-027]`
-- Commit Hash:
+- Commit Hash: 95132c1
 
 ## Notes and Limitations
 

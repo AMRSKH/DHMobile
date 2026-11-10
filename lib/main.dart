@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/app_info.dart';
@@ -8,18 +7,8 @@ import 'data/storage/storage_service.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/library/library_controller.dart';
 
-class _AppHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  HttpOverrides.global = _AppHttpOverrides();
   final storageService = StorageService();
   await storageService.init();
   DLog.event('app.start', 'storage ready');
