@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/debug_log.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/history_item.dart';
@@ -29,7 +29,7 @@ class StorageService {
       _historyBox = await Hive.openBox(historyBoxName);
       _settingsBox = await Hive.openBox(settingsBoxName);
     } catch (e) {
-      debugPrint('Hive init error (falling back to memory): $e');
+      DLog.error('storage.hiveInit', e);
     }
   }
 
@@ -89,7 +89,7 @@ class StorageService {
           try {
             list.add(WatchHistoryItem.fromMap(data));
           } catch (e) {
-            debugPrint('Error parsing history item: $e');
+            DLog.error('storage.historyParse', e);
           }
         }
       }
@@ -161,7 +161,8 @@ class StorageService {
   // Settings
   String getDefaultQuality() {
     if (_settingsBox != null && _settingsBox!.isOpen) {
-      return _settingsBox!.get(keyDefaultQuality, defaultValue: '720p') as String;
+      return _settingsBox!.get(keyDefaultQuality, defaultValue: '720p')
+          as String;
     }
     return _memSettings[keyDefaultQuality] ?? '720p';
   }
@@ -175,7 +176,8 @@ class StorageService {
 
   String getPreferredSubtitle() {
     if (_settingsBox != null && _settingsBox!.isOpen) {
-      return _settingsBox!.get(keyPreferredSubtitle, defaultValue: 'English') as String;
+      return _settingsBox!.get(keyPreferredSubtitle, defaultValue: 'English')
+          as String;
     }
     return _memSettings[keyPreferredSubtitle] ?? 'English';
   }

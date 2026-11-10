@@ -9,6 +9,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
+import '../../core/debug_log.dart';
 import '../library/library_controller.dart';
 import '../settings/settings_controller.dart';
 import 'player_controller.dart';
@@ -97,6 +98,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    DLog.event('player.lifecycle', '$state playing=$_isPlaying pos=$_position');
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _saveProgress(syncHistory: true);
@@ -182,6 +184,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     setState(() {
       _showControls = !_showControls;
     });
+    DLog.event(
+      'player.controls',
+      'show=$_showControls playing=$_isPlaying '
+          'ep=${_currentEpisode.number.toInt()}',
+    );
     if (_showControls) {
       _startHideControlsTimer();
     }
@@ -194,6 +201,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _disposePlayers();
     setState(() {
       _isBuffering = true;
+      _isPlaying = false;
       _errorMessage = null;
       _position = Duration.zero;
       _duration = Duration.zero;
@@ -201,6 +209,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     });
 
     _resetBufferingWatchdog();
+
+    DLog.event(
+      'player.init',
+      'src=$_currentSourceIndex/${_availableSources.length} '
+          'server=${source.server} quality=${source.quality} '
+          'ep=${_currentEpisode.number.toInt()} url=${source.url}',
+    );
 
     try {
       if (!_useFallbackPlayer) {
@@ -239,6 +254,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _vpController = vp;
         await vp.initialize();
         if (!mounted) return;
+        DLog.event(
+          'player.ready',
+          'src=$_currentSourceIndex dur=${vp.value.duration} '
+              'server=${source.server}',
+        );
         vp.addListener(_vpListener);
         await vp.play();
         if (mounted) {
@@ -252,6 +272,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         }
       }
     } catch (e) {
+      DLog.error('player.init', 'src=$_currentSourceIndex $e');
       if (!mounted) return;
       if (!_useFallbackPlayer) {
         setState(() {
@@ -274,7 +295,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   void _resetBufferingWatchdog() {
     _bufferingWatchdog?.cancel();
-    _bufferingWatchdog = Timer(const Duration(seconds: 8), () {
+    // A slow CDN can need more than 10 s before the first frame. Give the
+    // current source time to start instead of discarding a working stream.
+    _bufferingWatchdog = Timer(const Duration(seconds: 20), () {
+      DLog.event(
+        'player.watchdog',
+        'src=$_currentSourceIndex buffering=$_isBuffering '
+            'playing=$_isPlaying',
+      );
       if (!mounted || !_isBuffering || _isPlaying) return;
       if (_availableSources.isEmpty) return;
       if (!_useFallbackPlayer) {
@@ -306,6 +334,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void _vlcListener() {
     if (_vlcController == null || !mounted) return;
     final value = _vlcController!.value;
+    final wasPlaying = _isPlaying;
 
     setState(() {
       _isPlaying = value.isPlaying;
@@ -316,6 +345,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     if (value.isPlaying) {
       _bufferingWatchdog?.cancel();
+      if (!wasPlaying) {
+        // Playback just started: the control overlay is opaque to taps and
+        // dims the video, so it must hide on its own.
+        _startHideControlsTimer();
+      }
     }
 
     if (value.isInitialized && _positionPollTimer == null) {
@@ -348,8 +382,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void _vpListener() {
     if (_vpController == null || !mounted) return;
     final value = _vpController!.value;
+    final wasPlaying = _isPlaying;
 
     if (value.hasError) {
+      DLog.error(
+        'player.vp',
+        'src=$_currentSourceIndex err=${value.errorDescription}',
+      );
       if (_availableSources.isEmpty) return;
       if (_currentSourceIndex < _availableSources.length - 1) {
         setState(() {
@@ -374,6 +413,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     if (value.isPlaying) {
       _bufferingWatchdog?.cancel();
+      if (!wasPlaying) {
+        // Playback just started: the control overlay is opaque to taps and
+        // dims the video, so it must hide on its own.
+        _startHideControlsTimer();
+      }
     }
 
     if (!_endHandled &&
@@ -405,6 +449,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   void _seekRelative(int seconds) {
+    DLog.event('player.seek', 'by=$seconds from=$_position dur=$_duration');
     final target = _position + Duration(seconds: seconds);
     final clamped = Duration(
       milliseconds: target.inMilliseconds.clamp(0, _duration.inMilliseconds),
@@ -452,6 +497,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   void _handleNextEpisode() {
     _saveProgress(syncHistory: true);
+    DLog.event(
+      'player.next',
+      'from=${_currentEpisode.number.toInt()} '
+          'of=${widget.episodes.length}',
+    );
     if (_currentEpisodeIndex < widget.episodes.length - 1) {
       setState(() {
         _currentEpisodeIndex++;
@@ -521,6 +571,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         data: (sources) {
           if (sources != _availableSources) {
             _availableSources = sources;
+            DLog.event(
+              'player.sources',
+              'ep=${_currentEpisode.number.toInt()} count=${sources.length}',
+            );
             if (sources.isNotEmpty) {
               _currentSourceIndex = _findInitialSourceIndex(sources);
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -548,15 +602,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             );
           }
 
-          return GestureOverlay(
-            onToggleControls: _toggleControls,
-            onDoubleTapLeft: () => _seekRelative(-10),
-            onDoubleTapRight: () => _seekRelative(10),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Video Surface
-                Center(
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureOverlay(
+                onToggleControls: _toggleControls,
+                onDoubleTapLeft: () => _seekRelative(-10),
+                onDoubleTapRight: () => _seekRelative(10),
+                // Only the video lives under the gesture layer; the controls
+                // and dialogs stay above it so their buttons stay tappable.
+                child: Center(
                   child: (!_useFallbackPlayer && _vlcController != null)
                       ? VlcPlayer(
                           controller: _vlcController!,
@@ -571,81 +626,110 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         )
                       : Container(color: Colors.black),
                 ),
+              ),
 
-                // Single Buffering Indicator when controls are hidden
-                if (_isBuffering && !_showControls)
-                  const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFE50914),
-                      strokeWidth: 3,
+              // Single Buffering Indicator when controls are hidden
+              if (_isBuffering && !_showControls)
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(
+                        color: Color(0xFFE50914),
+                        strokeWidth: 3,
+                      ),
+                      if (_availableSources.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Connecting to '
+                          '${_availableSources[_currentSourceIndex].server ?? 'server'}'
+                          ' (${_currentSourceIndex + 1}/${_availableSources.length})',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+              if (_errorMessage != null)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 40,
+                          color: Colors.amber,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () {
+                            _initializeStream(
+                              _availableSources[_currentSourceIndex],
+                            );
+                          },
+                          child: const Text('Retry Stream'),
+                        ),
+                      ],
                     ),
                   ),
+                ),
 
-                if (_errorMessage != null)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 40,
-                            color: Colors.amber,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () {
-                              _initializeStream(
-                                _availableSources[_currentSourceIndex],
-                              );
-                            },
-                            child: const Text('Retry Stream'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Controls Overlay
-                if (_showControls)
-                  PlayerControls(
-                    title: widget.show.title,
-                    episodeTitle: _currentEpisode.title,
-                    isPlaying: _isPlaying,
-                    isBuffering: _isBuffering,
-                    position: _position,
-                    duration: _duration,
-                    speed: _speed,
-                    sources: _availableSources,
-                    currentSourceIndex: _currentSourceIndex,
-                    hasNextEpisode:
-                        _currentEpisodeIndex < widget.episodes.length - 1,
-                    onPlayPause: _togglePlayPause,
-                    onSeek: _seekTo,
-                    onSeekBack10: () => _seekRelative(-10),
-                    onSeekForward10: () => _seekRelative(10),
-                    onSpeedChanged: _setSpeed,
-                    onSourceChanged: (idx) {
-                      setState(() {
-                        _currentSourceIndex = idx;
-                      });
-                      _initializeStream(_availableSources[idx]);
-                    },
-                    onNextEpisode: _handleNextEpisode,
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
-              ],
-            ),
+              // Controls Overlay
+              if (_showControls)
+                PlayerControls(
+                  title: widget.show.title,
+                  episodeTitle: _currentEpisode.title,
+                  isPlaying: _isPlaying,
+                  isBuffering: _isBuffering,
+                  position: _position,
+                  duration: _duration,
+                  speed: _speed,
+                  sources: _availableSources,
+                  currentSourceIndex: _currentSourceIndex,
+                  hasNextEpisode:
+                      _currentEpisodeIndex < widget.episodes.length - 1,
+                  onPlayPause: _togglePlayPause,
+                  onSeek: _seekTo,
+                  onSeekBack10: () => _seekRelative(-10),
+                  onSeekForward10: () => _seekRelative(10),
+                  onSpeedChanged: _setSpeed,
+                  onSourceChanged: (idx) {
+                    DLog.event(
+                      'player.sourceSwitch',
+                      'to=$idx/${_availableSources.length} '
+                          'server=${_availableSources[idx].server}',
+                    );
+                    setState(() {
+                      _currentSourceIndex = idx;
+                    });
+                    _initializeStream(_availableSources[idx]);
+                  },
+                  onNextEpisode: _handleNextEpisode,
+                  onBack: () {
+                    DLog.event(
+                      'player.back',
+                      'ep=${_currentEpisode.number.toInt()}',
+                    );
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
           );
         },
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/debug_log.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../library/library_controller.dart';
@@ -80,6 +81,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   if (widget.show.poster.isNotEmpty)
                     CachedNetworkImage(
                       imageUrl: widget.show.poster,
+                      httpHeaders: const {
+                        'Referer': 'https://animexin.dev/',
+                        'User-Agent':
+                            'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                      },
                       fit: BoxFit.cover,
                       errorWidget: (_, _, _) =>
                           Container(color: const Color(0xFF181A20)),
@@ -323,6 +329,14 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
               ),
             ),
             data: (episodes) {
+              if (episodes.isNotEmpty) {
+                DLog.event(
+                  'detail.episodes',
+                  'show="${widget.show.title}" count=${episodes.length} '
+                      'first=${episodes.first.number.toInt()} '
+                      'last=${episodes.last.number.toInt()}',
+                );
+              }
               if (episodes.isEmpty) {
                 return const SliverFillRemaining(
                   hasScrollBody: false,
@@ -522,6 +536,11 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
     int? initialPositionMs,
     int? index,
   }) {
+    DLog.event(
+      'detail.episodeTap',
+      'show="${widget.show.title}" ep=${episode.number.toInt()} '
+          'resumeMs=${initialPositionMs ?? 0} index=$index total=${allEpisodes.length}',
+    );
     if (widget.onEpisodeSelected != null) {
       widget.onEpisodeSelected!(episode, allEpisodes);
     } else {

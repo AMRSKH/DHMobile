@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
@@ -5,11 +6,14 @@ import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
 import '../../domain/providers/stream_provider.dart';
+import '../../core/debug_log.dart';
 import 'stream_resolver.dart';
 import 'stream_source_filter.dart';
 
 class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
+  List<Show>? _trendingCache;
+  String? _trendingCacheDay;
 
   AnimeXinStreamProvider({Dio? dio})
     : _dio =
@@ -36,33 +40,49 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
   String get name => 'AnimeXin';
 
   @override
-  Future<List<Show>> search(String query) async {
+  Future<List<Show>> search(String query, {int? weekday}) async {
     final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) return _getFeaturedShows();
+    if (cleanQuery.isEmpty) {
+      final day = (weekday ?? DateTime.now().weekday).clamp(1, 7);
+      final cached = _cachedWeekdayTrending(day);
+      if (cached != null) return cached;
+      final shows = await _scrapeWeekdayTrending(day);
+      _trendingCache = shows;
+      _trendingCacheDay =
+          '${DateTime.now().toUtc().toIso8601String().substring(0, 10)}:$day';
+      return shows;
+    }
 
     try {
       final response = await _dio.get('/', queryParameters: {'s': cleanQuery});
 
       final document = html_parser.parse(response.data);
+      // `.bsx` is nested inside `article.bs`, so matching both would add every
+      // result twice. Dedupe by URL as a second guard.
       final articles = document.querySelectorAll(
-        'article.bs, .listupd article, .bsx',
+        'article.bs, .listupd article',
       );
 
       final List<Show> results = [];
+      final seenUrls = <String>{};
       for (final article in articles) {
         final linkEl = article.querySelector('a');
-        final titleEl = article.querySelector('.tt, h2, .entry-title');
+        final titleEl = article.querySelector('.tt h2, .tt, h2, .entry-title');
         final imgEl = article.querySelector('img');
         final epEl = article.querySelector('.epx, .bt .ep');
 
         final url = linkEl?.attributes['href'] ?? '';
-        final title =
-            titleEl?.text.trim() ?? linkEl?.attributes['title']?.trim() ?? '';
+        final linkTitle = linkEl?.attributes['title']?.trim() ?? '';
+        // `.tt` contains both a text node and an `<h2>` with the same title,
+        // so prefer the link title to avoid duplicated text.
+        final title = linkTitle.isNotEmpty
+            ? linkTitle
+            : (titleEl?.text.trim() ?? '');
         final poster =
             imgEl?.attributes['data-src'] ?? imgEl?.attributes['src'] ?? '';
         final epCount = epEl?.text.trim();
 
-        if (url.isNotEmpty && title.isNotEmpty) {
+        if (url.isNotEmpty && title.isNotEmpty && seenUrls.add(url)) {
           results.add(
             Show(
               id: url,
@@ -75,8 +95,17 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         }
       }
 
-      if (results.isNotEmpty) return results;
-    } catch (_) {
+      if (results.isNotEmpty) {
+        DLog.event(
+          'search',
+          'q="$cleanQuery" articles=${articles.length} '
+              'unique=${results.length}',
+        );
+        return results;
+      }
+      DLog.event('search', 'q="$cleanQuery" no results, using fallback');
+    } catch (e) {
+      DLog.event('search', 'q="$cleanQuery" failed: $e');
       // Fallback to local catalog if network blocks or site changes
     }
 
@@ -93,6 +122,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         '.eplister ul li, .episodelist ul li',
       );
       final List<Episode> episodeList = [];
+      final Set<String> seenUrls = {};
 
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
@@ -105,10 +135,12 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
         final epNumStr = numEl?.text.trim() ?? '${items.length - i}';
         final epTitle = titleEl?.text.trim() ?? 'Episode $epNumStr';
         final epNum =
-            double.tryParse(epNumStr.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+            double.tryParse(
+              RegExp(r'^\d+').firstMatch(epNumStr)?.group(0) ?? '',
+            ) ??
             (items.length - i).toDouble();
 
-        if (epUrl.isNotEmpty) {
+        if (epUrl.isNotEmpty && seenUrls.add(epUrl)) {
           episodeList.add(
             Episode(
               id: epUrl,
@@ -123,9 +155,20 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
 
       if (episodeList.isNotEmpty) {
         episodeList.sort((a, b) => a.number.compareTo(b.number));
+        DLog.event(
+          'episodes',
+          'show=$showId nodes=${items.length} '
+              'unique=${episodeList.length} '
+              'first=${episodeList.first.number.toInt()} '
+              'last=${episodeList.last.number.toInt()} '
+              'lastTitle="${episodeList.last.title}"',
+        );
         return episodeList;
       }
-    } catch (_) {}
+      DLog.event('episodes', 'show=$showId nodes=${items.length} empty');
+    } catch (e, st) {
+      DLog.error('episodes', e, st);
+    }
 
     // Do not invent episodes when scraping fails: fake IDs cannot be played
     // and would send the user into a dead player screen.
@@ -210,11 +253,22 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     final List<StreamSource> resolvedSources = [];
     if (rawCandidates.isNotEmpty) {
       final results = await Future.wait(
-        rawCandidates.map(
-          (c) => resolver
-              .resolve(c.url, serverHint: c.server, referer: episodeId)
-              .catchError((_) => <StreamSource>[]),
-        ),
+        rawCandidates.map((c) async {
+          try {
+            final resolved = await resolver.resolve(
+              c.url,
+              serverHint: c.server,
+              referer: episodeId,
+            );
+            // ignore: avoid_print
+            DLog.event('resolve', '${c.server} ${c.url} -> ${resolved.length}');
+            return resolved;
+          } catch (e) {
+            // ignore: avoid_print
+            DLog.event('resolve', '${c.server} ${c.url} ERROR $e');
+            return <StreamSource>[];
+          }
+        }),
       );
       for (final list in results) {
         resolvedSources.addAll(list);
@@ -222,11 +276,84 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     }
 
     // Only expose sources that actually respond with playable media.
+    DLog.event(
+      'streams.raw',
+      'candidates=${rawCandidates.length} '
+          'resolved=${resolvedSources.length} episode=$episodeId',
+    );
     if (resolvedSources.isEmpty) return const [];
-    return StreamSourceFilter().filter(resolvedSources);
+    final filtered = await StreamSourceFilter().filter(resolvedSources);
+    DLog.event(
+      'streams.ready',
+      'kept=${filtered.length} '
+          'servers=${filtered.map((s) => '${s.server}/${s.quality}').join(',')}',
+    );
+    return filtered;
   }
 
-  List<Show> _getFeaturedShows() {
+  List<Show>? _cachedWeekdayTrending(int weekday) {
+    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+    final key = '$today:$weekday';
+    if (_trendingCacheDay == key && (_trendingCache?.length ?? 0) >= 7) {
+      return _trendingCache;
+    }
+    return null;
+  }
+
+  Future<List<Show>> _scrapeWeekdayTrending(int weekday) async {
+    weekday = weekday.clamp(1, 7);
+    try {
+      final response = await _dio.get('/');
+      final document = html_parser.parse(response.data);
+      final articles = document.querySelectorAll(
+        'article.bs, .listupd article',
+      );
+      final pool = <Show>[];
+      final seen = <String>{};
+      for (final article in articles) {
+        final linkEl = article.querySelector('a');
+        final titleEl = article.querySelector('.tt h2, .tt, h2, .entry-title');
+        final imgEl = article.querySelector('img');
+        final url = linkEl?.attributes['href'] ?? '';
+        final linkTitle = linkEl?.attributes['title']?.trim() ?? '';
+        final title = linkTitle.isNotEmpty
+            ? linkTitle
+            : (titleEl?.text.trim() ?? '');
+        final poster =
+            imgEl?.attributes['data-src'] ?? imgEl?.attributes['src'] ?? '';
+        if (url.isNotEmpty && title.isNotEmpty && seen.add(url)) {
+          pool.add(
+            Show(
+              id: url,
+              title: title,
+              poster: poster,
+              episodeCount: article.querySelector('.epx, .bt .ep')?.text.trim(),
+              providerId: id,
+            ),
+          );
+        }
+        if (pool.length >= 21) break;
+      }
+      if (pool.length >= 7) {
+        DLog.event(
+          'trending.scrape',
+          'pool=${pool.length} posters=${pool.where((s) => s.poster.isNotEmpty).length} weekday=$weekday',
+        );
+        final now = DateTime.now();
+        final rng = Random(weekday * 37 + now.day + now.hour);
+        final shuffled = [...pool]..shuffle(rng);
+        final result = shuffled.take(7).toList();
+        DLog.event('trending.scrape', 'pool=${pool.length} weekday=$weekday');
+        return result;
+      }
+    } catch (e) {
+      DLog.error('trending.scrape', e);
+    }
+    DLog.event('trending.fallback', 'using built-in pool');
+    return _getFeaturedFallback();
+  }
+
+  List<Show> _getFeaturedFallback() {
     return const [
       Show(
         id: 'https://animexin.dev/btth-season-5/',
@@ -277,7 +404,7 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
 
   List<Show> _filterFallback(String query) {
     final lower = query.toLowerCase();
-    return _getFeaturedShows().where((show) {
+    return _getFeaturedFallback().where((show) {
       return show.title.toLowerCase().contains(lower) ||
           show.genres.any((g) => g.toLowerCase().contains(lower));
     }).toList();

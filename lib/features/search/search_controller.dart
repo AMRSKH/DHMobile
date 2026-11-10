@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/show.dart';
 import '../../domain/providers/stream_provider.dart';
 import '../../data/providers/animexin_stream_provider.dart';
+import '../../core/debug_log.dart';
 
 final streamProvider = Provider<DonghuaStreamProvider>((ref) {
   return AnimeXinStreamProvider();
@@ -9,8 +10,8 @@ final streamProvider = Provider<DonghuaStreamProvider>((ref) {
 
 final searchControllerProvider =
     NotifierProvider<SearchController, AsyncValue<List<Show>>>(() {
-  return SearchController();
-});
+      return SearchController();
+    });
 
 class SearchController extends Notifier<AsyncValue<List<Show>>> {
   @override
@@ -23,8 +24,10 @@ class SearchController extends Notifier<AsyncValue<List<Show>>> {
     final provider = ref.read(streamProvider);
     try {
       final results = await provider.search('');
+      DLog.event('search.initial', 'count=${results.length}');
       state = AsyncValue.data(results);
     } catch (e, st) {
+      DLog.error('search.initial', e, st);
       state = AsyncValue.error(e, st);
     }
   }
@@ -34,8 +37,10 @@ class SearchController extends Notifier<AsyncValue<List<Show>>> {
     try {
       final provider = ref.read(streamProvider);
       final results = await provider.search(query);
+      DLog.event('search.result', 'q="$query" count=${results.length}');
       state = AsyncValue.data(results);
     } catch (e, st) {
+      DLog.error('search.initial', e, st);
       state = AsyncValue.error(e, st);
     }
   }

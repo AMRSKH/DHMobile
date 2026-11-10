@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import '../../../core/debug_log.dart';
 
 class GestureOverlay extends StatefulWidget {
   final Widget child;
@@ -116,13 +117,22 @@ class _GestureOverlayState extends State<GestureOverlay> {
 
     return Stack(
       children: [
-        // Keep the gesture layer below the player UI so buttons and sliders
-        // receive taps before the full-screen tap handler.
+        // The video surface sits at the bottom; the gesture layer goes on top
+        // of it so taps and swipes are always received. Interactive overlays
+        // (controls, error actions) must be placed above this widget.
+        widget.child,
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onTap: widget.onToggleControls,
+            onTap: () {
+              DLog.event('gesture.tap', '');
+              widget.onToggleControls();
+            },
             onDoubleTapDown: (details) {
+              DLog.event(
+                'gesture.doubleTap',
+                details.globalPosition.dx < size.width / 2 ? 'left' : 'right',
+              );
               if (details.globalPosition.dx < size.width / 2) {
                 widget.onDoubleTapLeft();
               } else {
@@ -134,7 +144,6 @@ class _GestureOverlayState extends State<GestureOverlay> {
             onVerticalDragEnd: _onVerticalDragEnd,
           ),
         ),
-        widget.child,
         if (_showIndicator)
           Center(
             child: Container(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/debug_log.dart';
 import '../../domain/models/show.dart';
 import '../detail/detail_screen.dart';
 import 'search_controller.dart';
@@ -24,6 +25,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _onSearch() {
+    DLog.event('search.query', _queryController.text);
     ref.read(searchControllerProvider.notifier).search(_queryController.text);
   }
 
@@ -39,7 +41,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: () {
-              ref.read(searchControllerProvider.notifier).search(_queryController.text);
+              DLog.event('search.refresh', _queryController.text);
+              ref
+                  .read(searchControllerProvider.notifier)
+                  .search(_queryController.text);
             },
           ),
         ],
@@ -73,16 +78,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           Expanded(
             child: searchState.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.redAccent,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'Failed to load: $error',
@@ -110,7 +117,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.65,
@@ -168,6 +178,11 @@ class _ShowCard extends StatelessWidget {
                   child: show.poster.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: show.poster,
+                          httpHeaders: const {
+                            'Referer': 'https://animexin.dev/',
+                            'User-Agent':
+                                'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                          },
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
                             color: const Color(0xFF1C1F26),
@@ -175,20 +190,28 @@ class _ShowCard extends StatelessWidget {
                               child: SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: const Color(0xFF1C1F26),
-                            child: const Icon(Icons.movie_outlined,
-                                size: 40, color: Colors.white24),
+                            child: const Icon(
+                              Icons.movie_outlined,
+                              size: 40,
+                              color: Colors.white24,
+                            ),
                           ),
                         )
                       : Container(
                           color: const Color(0xFF1C1F26),
-                          child: const Icon(Icons.movie_outlined,
-                              size: 40, color: Colors.white24),
+                          child: const Icon(
+                            Icons.movie_outlined,
+                            size: 40,
+                            color: Colors.white24,
+                          ),
                         ),
                 ),
                 if (show.episodeCount != null && show.episodeCount!.isNotEmpty)
@@ -196,7 +219,10 @@ class _ShowCard extends StatelessWidget {
                     top: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(6),

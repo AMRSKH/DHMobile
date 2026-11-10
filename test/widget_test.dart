@@ -4,12 +4,8 @@ import 'package:donghua_player/main.dart';
 
 void main() {
   testWidgets('App renders SearchScreen', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: DonghuaApp(),
-      ),
-    );
+    await tester.pumpWidget(const ProviderScope(child: DonghuaApp()));
 
-    expect(find.text('DonghuaPlayer'), findsOneWidget);
+    expect(find.text('DonghuaMobile'), findsOneWidget);
   });
 }

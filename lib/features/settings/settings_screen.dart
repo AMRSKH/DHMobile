@@ -265,7 +265,15 @@ class SettingsScreen extends ConsumerWidget {
             leading: Icon(Icons.info_outline, color: AppTheme.textMuted),
             title: Text('DonghuaPlayer'),
             subtitle: Text(
-              'Version 1.0.1 (Release)\nBuilt with Flutter & libVLC',
+              'Version 1.0.3 (Release)\nBuilt with Flutter & libVLC',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
+          ),
+          const ListTile(
+            leading: Icon(Icons.code_outlined, color: AppTheme.textMuted),
+            title: Text('Credits'),
+            subtitle: Text(
+              'Development by AMSCenter\nDeveloper by AMSDev',
               style: TextStyle(color: AppTheme.textMuted),
             ),
           ),

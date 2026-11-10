@@ -7,6 +7,7 @@ import '../../domain/models/show.dart';
 import '../../domain/models/history_item.dart';
 import '../detail/detail_screen.dart';
 import '../player/player_screen.dart';
+import '../../core/debug_log.dart';
 import 'library_controller.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -16,7 +17,8 @@ class LibraryScreen extends ConsumerStatefulWidget {
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTickerProviderStateMixin {
+class _LibraryScreenState extends ConsumerState<LibraryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -49,10 +51,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _HistoryTab(),
-          _FavoritesTab(),
-        ],
+        children: const [_HistoryTab(), _FavoritesTab()],
       ),
     );
   }
@@ -70,11 +69,19 @@ class _HistoryTab extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history_toggle_off_rounded, size: 72, color: AppTheme.textMuted.withValues(alpha: 0.5)),
+            Icon(
+              Icons.history_toggle_off_rounded,
+              size: 72,
+              color: AppTheme.textMuted.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
             const Text(
               'No watch history yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -104,14 +111,18 @@ class _HistoryTab extends ConsumerWidget {
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppTheme.surfaceDark,
                       title: const Text('Clear Watch History?'),
-                      content: const Text('All your progress and resume points will be removed.'),
+                      content: const Text(
+                        'All your progress and resume points will be removed.',
+                      ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
                           child: const Text('Cancel'),
                         ),
                         FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryRed),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.primaryRed,
+                          ),
                           onPressed: () => Navigator.pop(ctx, true),
                           child: const Text('Clear All'),
                         ),
@@ -122,8 +133,15 @@ class _HistoryTab extends ConsumerWidget {
                     ref.read(historyProvider.notifier).clearHistory();
                   }
                 },
-                icon: const Icon(Icons.delete_outline, size: 16, color: AppTheme.textMuted),
-                label: const Text('Clear All', style: TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 16,
+                  color: AppTheme.textMuted,
+                ),
+                label: const Text(
+                  'Clear All',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
               ),
             ],
           ),
@@ -168,9 +186,7 @@ class _HistoryCard extends ConsumerWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => DetailScreen(show: item.show),
-          ),
+          MaterialPageRoute(builder: (_) => DetailScreen(show: item.show)),
         );
       },
       borderRadius: BorderRadius.circular(12),
@@ -192,6 +208,11 @@ class _HistoryCard extends ConsumerWidget {
                   height: 110,
                   child: CachedNetworkImage(
                     imageUrl: item.show.poster,
+                    httpHeaders: const {
+                      'Referer': 'https://animexin.dev/',
+                      'User-Agent':
+                          'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                    },
                     fit: BoxFit.cover,
                     errorWidget: (_, _, _) => Container(
                       color: AppTheme.surfaceDark,
@@ -231,12 +252,18 @@ class _HistoryCard extends ConsumerWidget {
                         const SizedBox(height: 6),
                         Text(
                           '${_formatTime(item.positionMs)} / ${_formatTime(item.durationMs)}',
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textMuted,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           dateStr,
-                          style: TextStyle(fontSize: 11, color: AppTheme.textMuted.withValues(alpha: 0.7)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted.withValues(alpha: 0.7),
+                          ),
                         ),
                       ],
                     ),
@@ -246,7 +273,11 @@ class _HistoryCard extends ConsumerWidget {
                 Column(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.play_circle_fill_rounded, color: AppTheme.primaryRed, size: 36),
+                      icon: const Icon(
+                        Icons.play_circle_fill_rounded,
+                        color: AppTheme.primaryRed,
+                        size: 36,
+                      ),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -262,9 +293,15 @@ class _HistoryCard extends ConsumerWidget {
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 18, color: AppTheme.textMuted),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: AppTheme.textMuted,
+                      ),
                       onPressed: () {
-                        ref.read(historyProvider.notifier).removeItem(item.episode.id);
+                        ref
+                            .read(historyProvider.notifier)
+                            .removeItem(item.episode.id);
                       },
                     ),
                   ],
@@ -276,7 +313,9 @@ class _HistoryCard extends ConsumerWidget {
             LinearProgressIndicator(
               value: item.progressPercentage,
               backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppTheme.primaryRed,
+              ),
               minHeight: 3,
             ),
           ],
@@ -298,11 +337,19 @@ class _FavoritesTab extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.favorite_border_rounded, size: 72, color: AppTheme.textMuted.withValues(alpha: 0.5)),
+            Icon(
+              Icons.favorite_border_rounded,
+              size: 72,
+              color: AppTheme.textMuted.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
             const Text(
               'No favorite donghua yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -342,9 +389,7 @@ class _FavoriteCard extends ConsumerWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => DetailScreen(show: show),
-          ),
+          MaterialPageRoute(builder: (_) => DetailScreen(show: show)),
         );
       },
       child: Container(
@@ -363,8 +408,14 @@ class _FavoriteCard extends ConsumerWidget {
                 children: [
                   CachedNetworkImage(
                     imageUrl: show.poster,
+                    httpHeaders: const {
+                      'Referer': 'https://animexin.dev/',
+                      'User-Agent':
+                          'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                    },
                     fit: BoxFit.cover,
-                    placeholder: (_, _) => Container(color: AppTheme.surfaceDark),
+                    placeholder: (_, _) =>
+                        Container(color: AppTheme.surfaceDark),
                     errorWidget: (_, _, _) => Container(
                       color: AppTheme.surfaceDark,
                       child: const Icon(Icons.movie, color: AppTheme.textMuted),
@@ -375,7 +426,10 @@ class _FavoriteCard extends ConsumerWidget {
                     right: 6,
                     child: GestureDetector(
                       onTap: () {
-                        ref.read(favoritesProvider.notifier).toggleFavorite(show);
+                        DLog.event('library.favoriteToggle', show.title);
+                        ref
+                            .read(favoritesProvider.notifier)
+                            .toggleFavorite(show);
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),
@@ -383,7 +437,11 @@ class _FavoriteCard extends ConsumerWidget {
                           color: Colors.black.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.favorite, color: AppTheme.primaryRed, size: 18),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: AppTheme.primaryRed,
+                          size: 18,
+                        ),
                       ),
                     ),
                   ),
@@ -399,12 +457,19 @@ class _FavoriteCard extends ConsumerWidget {
                     show.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     show.episodeCount ?? 'Donghua',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textMuted,
+                    ),
                   ),
                 ],
               ),
