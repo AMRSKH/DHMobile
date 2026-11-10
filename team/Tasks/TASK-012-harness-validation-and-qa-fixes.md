@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-09
 Task: TASK-012
-Status: In Review
+Status: Completed
 
 # TASK-012: Harness Validation and QA Fixes
 
@@ -79,11 +79,11 @@ Final results on the working tree, including the owner's uncommitted app changes
 ## Git Commit
 
 - Commit Message: fix(security): close gaps found by independent QA [TASK-012]
-- Commit Hash:
+- Commit Hash: d19314b
 
 ## Final Report
 
-Pending commit.
+Independent QA accepted the harness after three rounds. Limitations are listed below.
 
 ## Notes and Limitations
 
@@ -91,5 +91,5 @@ Pending commit.
 - `.claude/settings.json` deny rules were not exercised against a real secret-pattern file, because `AGENTS.md` forbids reading those paths.
 - The hook checks hidden Dart paths only through directory formatting, which skips them. The project has none.
 - `.claude/settings.json` has no PowerShell allow rules, so those commands prompt. This fails safe.
-- Five archived records from before this harness contain a device serial number.
+- At the owner's request, the device serial in five migrated records was replaced with `<device-id>` by rewriting the three commits from TASK-010 onward, before any push. Those commits are now `15dcc45`, `d8b47a9`, and `d19314b`. The five files differ from their original `.team/` checksums by that token only.
 - `AGENTS.md` describes `debug_log`, `explore`, and `splash`, which are uncommitted working-tree files.
