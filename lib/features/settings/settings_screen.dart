@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_info.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
+import '../../domain/models/player_engine.dart';
 import '../library/library_controller.dart';
 import 'settings_controller.dart';
 
@@ -176,6 +177,28 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
+          // Player engine
+          ListTile(
+            leading: const Icon(
+              Icons.smart_display_outlined,
+              color: AppTheme.primaryRed,
+            ),
+            title: Text(s(S.videoPlayer)),
+            subtitle: Text(settings.playerEngine.label, style: muted),
+            trailing: chevron,
+            onTap: () async {
+              final chosen = await _showChoiceDialog<PlayerEngine>(
+                context: context,
+                title: s(S.chooseVideoPlayer),
+                values: PlayerEngine.values,
+                selected: settings.playerEngine,
+                labelOf: (engine) => engine.label,
+              );
+              if (chosen != null) {
+                await settingsNotifier.setPlayerEngine(chosen);
+              }
+            },
+          ),
 
           const Divider(
             height: 32,
@@ -313,7 +336,7 @@ class SettingsScreen extends ConsumerWidget {
               color: AppTheme.textMuted,
             ),
             title: Text(s(S.aboutPlayer)),
-            subtitle: const Text(AppInfo.playerEngine, style: muted),
+            subtitle: Text(settings.playerEngine.chain, style: muted),
           ),
           ListTile(
             leading: const Icon(Icons.public, color: AppTheme.textMuted),

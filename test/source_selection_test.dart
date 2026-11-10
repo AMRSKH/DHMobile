@@ -314,4 +314,27 @@ void main() {
       expect(sourceLabel(_src(null, '480p'), 2), 'Server 3 (480p)');
     });
   });
+
+  group('isNearEnd', () {
+    const minute = Duration(minutes: 1);
+
+    test('the last 5 s count as the end', () {
+      expect(isNearEnd(position: minute, duration: minute), isTrue);
+      expect(
+        isNearEnd(position: const Duration(seconds: 55), duration: minute),
+        isTrue,
+      );
+    });
+
+    test('an end in the middle is not the end', () {
+      expect(
+        isNearEnd(position: const Duration(seconds: 30), duration: minute),
+        isFalse,
+      );
+    });
+
+    test('an unknown length is never the end', () {
+      expect(isNearEnd(position: minute, duration: Duration.zero), isFalse);
+    });
+  });
 }

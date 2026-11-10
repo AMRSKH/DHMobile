@@ -25,7 +25,6 @@ void main() {
   });
 
   test('the About facts are not empty', () {
-    expect(AppInfo.playerEngine, isNotEmpty);
     expect(AppInfo.contentSource, isNotEmpty);
   });
 }

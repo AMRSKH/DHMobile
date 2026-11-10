@@ -113,6 +113,14 @@ int carriedResumeMs({required int positionMs, required int pendingMs}) {
   return positionMs > 3000 && positionMs > pendingMs ? positionMs : pendingMs;
 }
 
+/// True when an "ended" report at [position] is the real end of the episode:
+/// the length is known and at most 5 s are left. libVLC also reports the end
+/// when a stream dies in the middle.
+bool isNearEnd({required Duration position, required Duration duration}) {
+  if (duration <= Duration.zero) return false;
+  return position >= duration - const Duration(seconds: 5);
+}
+
 /// Index of the source with the same server and quality as [previous], or -1.
 int stickySourceIndex(List<StreamSource> sources, StreamSource? previous) {
   if (previous == null) return -1;

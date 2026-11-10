@@ -13,6 +13,7 @@ class StorageService {
   static const String keyDefaultQuality = 'default_quality';
   static const String keyPreferredSubtitle = 'preferred_subtitle';
   static const String keyLanguage = 'display_language';
+  static const String keyPlayerEngine = 'player_engine';
 
   Box? _favoritesBox;
   Box? _historyBox;
@@ -204,6 +205,22 @@ class StorageService {
       await _settingsBox!.put(keyLanguage, code);
     }
     _memSettings[keyLanguage] = code;
+  }
+
+  /// Code of the chosen player engine, `null` when nothing was stored yet.
+  String? getPlayerEngineCode() {
+    if (_settingsBox != null && _settingsBox!.isOpen) {
+      final value = _settingsBox!.get(keyPlayerEngine);
+      return value is String ? value : null;
+    }
+    return _memSettings[keyPlayerEngine];
+  }
+
+  Future<void> setPlayerEngineCode(String code) async {
+    if (_settingsBox != null && _settingsBox!.isOpen) {
+      await _settingsBox!.put(keyPlayerEngine, code);
+    }
+    _memSettings[keyPlayerEngine] = code;
   }
 
   Future<void> clearAllCache() async {

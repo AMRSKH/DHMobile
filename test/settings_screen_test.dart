@@ -83,7 +83,7 @@ void main() {
     expect(find.text('DHMobile'), findsOneWidget);
     expect(find.text('Version 1.0.4 (build 5)'), findsOneWidget);
     expect(find.text('Player'), findsOneWidget);
-    expect(find.text('video_player (ExoPlayer)'), findsOneWidget);
+    expect(find.text('VLC (libVLC) → ExoPlayer'), findsOneWidget);
     expect(find.text('Content source'), findsOneWidget);
     expect(find.text('AnimeXin (animexin.dev)'), findsOneWidget);
     expect(find.text('Credits'), findsOneWidget);
@@ -95,7 +95,7 @@ void main() {
       findsOneWidget,
     );
 
-    expect(find.textContaining('libVLC'), findsNothing);
+    expect(find.text('video_player (ExoPlayer)'), findsNothing);
     expect(find.textContaining('(Release)'), findsNothing);
     expect(find.textContaining('100% offline'), findsNothing);
     expect(find.text('DonghuaPlayer'), findsNothing);
@@ -126,5 +126,27 @@ void main() {
     await tester.tap(find.text('ស្វ័យប្រវត្តិ'));
     await tester.pumpAndSettle();
     expect(storage.getDefaultQuality(), 'Auto');
+  });
+
+  testWidgets('Video Player switches between VLC and ExoPlayer', (
+    tester,
+  ) async {
+    final storage = await _pumpSettings(tester);
+
+    expect(find.text('Video Player'), findsOneWidget);
+    // The tile shows the engine, About shows the chain behind it.
+    expect(find.text('VLC (libVLC)'), findsOneWidget);
+    expect(find.text('VLC (libVLC) → ExoPlayer'), findsOneWidget);
+
+    await tester.tap(find.text('Video Player'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose Video Player'), findsOneWidget);
+    await tester.tap(find.text('ExoPlayer'));
+    await tester.pumpAndSettle();
+
+    expect(storage.getPlayerEngineCode(), 'exo');
+    // Tile and About now both read "ExoPlayer".
+    expect(find.text('ExoPlayer'), findsNWidgets(2));
+    expect(find.text('VLC (libVLC) → ExoPlayer'), findsNothing);
   });
 }

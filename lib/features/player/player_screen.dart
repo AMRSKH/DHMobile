@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../data/storage/storage_service.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
+import '../../domain/models/player_engine.dart';
 import '../../domain/models/stream_source.dart';
 import '../../core/debug_log.dart';
 import '../../core/l10n/app_strings.dart';
@@ -49,8 +50,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // Fallback VideoPlayer
   VideoPlayerController? _vpController;
 
-  // Fallback VideoPlayer (preferred for reliable native Android hardware decode)
-  bool _useFallbackPlayer = true;
+  // The engine of the current load. Every new load starts on the engine from
+  // Settings (VLC by default). When VLC fails on a source, the same source
+  // is loaded again on ExoPlayer before the player moves on to another one.
+  PlayerEngine _engine = PlayerEngine.vlc;
+  // True once the current load has played. The Android VLC plugin reports
+  // its buffering events as "not buffering", so for VLC this, and not
+  // `_isBuffering`, tells a load that never started (QA TASK-020 M1).
+  bool _loadHasPlayed = false;
   bool _isPlaying = false;
   bool _isBuffering = true;
   Duration _position = Duration.zero;
@@ -149,7 +156,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // A video that is buffering reports "not playing", and would start
       // its audio in the background when the buffer fills.
       if (_effectivePlaying) {
-        _vlcController?.pause();
+        _pauseVlc();
         _vpController?.pause();
       }
       if (mounted) setState(() => _wantPlaying = false);
@@ -178,16 +185,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _positionPollTimer = null;
     _bufferingWatchdog?.cancel();
     _bufferingWatchdog = null;
-    if (_vlcController != null) {
-      if (_vlcController!.value.isInitialized) {
-        try {
-          _vlcController!.stop();
-        } catch (_) {}
-      }
-      try {
-        _vlcController!.dispose();
-      } catch (_) {}
+    // The listeners read the current controller fields. A controller that is
+    // being torn down must not report into the load that replaces it.
+    _vlcController?.removeListener(_vlcListener);
+    _vpController?.removeListener(_vpListener);
+    final vlc = _vlcController;
+    if (vlc != null) {
       _vlcController = null;
+      // `dispose()` also throws for a controller that never got its view.
+      // Both are async, so their errors arrive as Future errors.
+      if (vlc.value.isInitialized) _vlcCall('player.vlcStop', vlc.stop);
+      _vlcCall('player.vlcDispose', vlc.dispose);
     }
 
     _vpController?.dispose();
@@ -309,6 +317,44 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _initializeStream(_availableSources[next]);
   }
 
+  /// The current load failed on [_engine]. Loads the same source on the
+  /// fallback engine, or fails over to the next source when there is none.
+  /// In the background the failure says nothing about the engine, so
+  /// [_failover] defers it.
+  void _onEngineFailed(StreamSource source) {
+    final fallback = _engine.fallbackEngine();
+    if (fallback == null || _inBackground) {
+      _failover();
+      return;
+    }
+    DLog.event(
+      'player.engineFallback',
+      'src=$_currentSourceIndex from=${_engine.code} to=${fallback.code}',
+    );
+    _carryPositionToNextLoad();
+    _initializeStream(source, engine: fallback);
+  }
+
+  /// VLC throws when it is paused before it is initialized.
+  void _pauseVlc() {
+    final vlc = _vlcController;
+    if (vlc == null || !vlc.value.isInitialized) return;
+    _vlcCall('player.vlcPause', vlc.pause);
+  }
+
+  /// Runs a VLC platform call and logs its error. Every VLC call is async
+  /// and can fail on the platform side, so none is left unhandled.
+  void _vlcCall(String tag, Future<void> Function() call) {
+    try {
+      call().then<void>(
+        (_) {},
+        onError: (Object e, StackTrace st) => DLog.error(tag, e, st),
+      );
+    } catch (e, st) {
+      DLog.error(tag, e, st);
+    }
+  }
+
   void _toggleControls() {
     _menuOpen = false;
     setState(() {
@@ -326,13 +372,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Episode get _currentEpisode => widget.episodes[_currentEpisodeIndex];
 
-  Future<void> _initializeStream(StreamSource source) async {
+  /// Loads [source] on [engine], or on the engine from Settings when it is
+  /// not given.
+  Future<void> _initializeStream(
+    StreamSource source, {
+    PlayerEngine? engine,
+  }) async {
     if (!mounted) return;
     _disposePlayers();
     // A later teardown (source switch, next episode, failover) makes this
     // load stale. It must then neither touch the state nor fail over.
     final load = _loadGeneration;
     setState(() {
+      _engine = engine ?? ref.read(settingsProvider).playerEngine;
+      _loadHasPlayed = false;
       _isBuffering = true;
       _isPlaying = false;
       // A load starts playing by itself, unless the app goes to the
@@ -350,12 +403,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       'player.init',
       'src=$_currentSourceIndex/${_availableSources.length} '
           'server=${source.server} quality=${source.quality} '
+          'engine=${_engine.code} '
           'ep=${_currentEpisode.number.toInt()} url=${source.url}',
     );
 
     try {
-      if (!_useFallbackPlayer) {
-        // VLC Player
+      if (_engine == PlayerEngine.vlc) {
+        // VLC Player. It can send only these two headers; the streams of
+        // the supported hosts load without the others (checked for the
+        // Dailymotion cookie on 2026-11-10, TASK-020).
         final vlcOptions = VlcPlayerOptions(
           advanced: VlcAdvancedOptions([
             VlcAdvancedOptions.networkCaching(3000),
@@ -373,6 +429,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           hwAcc: HwAcc.auto,
           autoPlay: true,
           options: vlcOptions,
+          // Without this the package adds its own lifecycle observer, which
+          // plays again on return from the background. This screen pauses
+          // and stays paused by itself (QA TASK-020 M3).
+          allowBackgroundPlayback: true,
         );
 
         _vlcController = controller;
@@ -424,15 +484,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // says nothing about the source that is loading now.
       if (!mounted || load != _loadGeneration) return;
       DLog.error('player.init', 'src=$_currentSourceIndex $e');
-      if (!_useFallbackPlayer) {
-        setState(() {
-          _useFallbackPlayer = true;
-        });
-        _carryPositionToNextLoad();
-        _initializeStream(source);
-      } else {
-        _failover();
-      }
+      _onEngineFailed(source);
     }
   }
 
@@ -440,24 +492,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _bufferingWatchdog?.cancel();
     // A slow CDN can need more than 10 s before the first frame. Give the
     // current source time to start instead of discarding a working stream.
-    _bufferingWatchdog = Timer(const Duration(seconds: 20), () {
+    // VLC gets less, because the same source still has ExoPlayer after it.
+    final wait = _engine.fallbackEngine() != null
+        ? const Duration(seconds: 15)
+        : const Duration(seconds: 20);
+    _bufferingWatchdog = Timer(wait, () {
       DLog.event(
         'player.watchdog',
         'src=$_currentSourceIndex buffering=$_isBuffering '
             'playing=$_isPlaying',
       );
-      if (!mounted || !_isBuffering || _isPlaying) return;
-      if (_availableSources.isEmpty) return;
-      if (!_useFallbackPlayer) {
-        setState(() {
-          _useFallbackPlayer = true;
-        });
-        _carryPositionToNextLoad();
-        _initializeStream(_availableSources[_currentSourceIndex]);
-      } else {
-        // Also at the last source, so the spinner cannot stay forever.
-        _failover();
-      }
+      if (!mounted || _isPlaying) return;
+      final stalled = _engine == PlayerEngine.vlc
+          ? !_loadHasPlayed
+          : _isBuffering;
+      if (!stalled || _availableSources.isEmpty) return;
+      // Also at the last source, so the spinner cannot stay forever.
+      _onEngineFailed(_availableSources[_currentSourceIndex]);
     });
   }
 
@@ -474,16 +525,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   void _vlcListener() {
-    if (_vlcController == null || !mounted) return;
-    final value = _vlcController!.value;
+    final vlc = _vlcController;
+    if (vlc == null || !mounted) return;
+    final value = vlc.value;
     final wasPlaying = _isPlaying;
+    // libVLC can report 0 as the time of its "ended" event.
+    final lastPosition = _position;
 
     // Read the last good position before the error state overwrites it.
     if (value.hasError) _carryPositionToNextLoad();
 
+    if (value.isPlaying) _loadHasPlayed = true;
     setState(() {
       _isPlaying = value.isPlaying;
-      _isBuffering = value.isBuffering;
+      // Until the first frame the load counts as buffering, so the spinner
+      // shows even though VLC reports its buffering as "not buffering".
+      _isBuffering = value.isBuffering || (!_loadHasPlayed && !value.hasError);
       _position = value.position;
       _duration = value.duration;
     });
@@ -494,7 +551,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // Playback just started: the control overlay is opaque to taps and
         // dims the video, so it must hide on its own.
         _startHideControlsTimer();
+        // A new controller starts at 1.0x.
+        if (_speed != 1.0) {
+          _vlcCall('player.vlcSpeed', () => vlc.setPlaybackSpeed(_speed));
+        }
       }
+      // VLC plays by itself once it is ready. A load that became ready while
+      // the app is in the background must not play behind another app.
+      if (_inBackground) _pauseVlc();
     }
 
     if (value.isInitialized && _positionPollTimer == null) {
@@ -507,18 +571,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     if (value.hasError) {
       if (_availableSources.isEmpty) return;
-      if (!_useFallbackPlayer) {
-        setState(() {
-          _useFallbackPlayer = true;
-        });
-        _carryPositionToNextLoad();
-        _initializeStream(_availableSources[_currentSourceIndex]);
-      } else {
-        _failover();
-      }
+      DLog.error(
+        'player.vlc',
+        'src=$_currentSourceIndex err=${value.errorDescription}',
+      );
+      _onEngineFailed(_availableSources[_currentSourceIndex]);
     } else if (value.isEnded && !_endHandled) {
-      _endHandled = true;
-      _handleNextEpisode();
+      final endPosition = value.position > lastPosition
+          ? value.position
+          : lastPosition;
+      if (isNearEnd(position: endPosition, duration: value.duration)) {
+        _endHandled = true;
+        _handleNextEpisode();
+      } else if (_availableSources.isNotEmpty) {
+        // libVLC can report "end reached" when an HLS input dies in the
+        // middle (QA TASK-020 M2).
+        DLog.event(
+          'player.vlc',
+          'early end pos=${value.position} dur=${value.duration}',
+        );
+        _carryPositionToNextLoad();
+        _onEngineFailed(_availableSources[_currentSourceIndex]);
+      }
     }
   }
 
@@ -594,8 +668,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   void _seekTo(Duration duration) {
-    if (_vlcController != null) {
-      _vlcController!.seekTo(duration);
+    final vlc = _vlcController;
+    if (vlc != null) {
+      if (!vlc.value.isInitialized) return;
+      _vlcCall('player.vlcSeek', () => vlc.seekTo(duration));
     } else if (_vpController != null) {
       _vpController!.seekTo(duration);
     }
@@ -607,6 +683,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final vp = _vpController;
     if (vp != null && !vp.value.isInitialized) return;
     final vlc = _vlcController;
+    if (vlc != null && !vlc.value.isInitialized) return;
     final pause = _effectivePlaying;
     DLog.event(
       'player.playPause',
@@ -616,14 +693,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (vlc != null || vp != null) {
       if (pause) {
         if (vlc != null) {
-          vlc.pause();
+          _vlcCall('player.vlcPause', vlc.pause);
         } else {
           vp!.pause();
         }
         _saveProgress(syncHistory: true);
       } else {
         if (vlc != null) {
-          vlc.play();
+          _vlcCall('player.vlcPlay', vlc.play);
         } else {
           vp!.play();
         }
@@ -641,8 +718,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     setState(() {
       _speed = s;
     });
-    if (_vlcController != null) {
-      _vlcController!.setPlaybackSpeed(s);
+    final vlc = _vlcController;
+    if (vlc != null) {
+      // A VLC load that is not ready yet gets the speed when it plays.
+      if (vlc.value.isInitialized) {
+        _vlcCall('player.vlcSpeed', () => vlc.setPlaybackSpeed(s));
+      }
     } else if (_vpController != null) {
       _vpController!.setPlaybackSpeed(s);
     }
@@ -780,8 +861,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 // Only the video lives under the gesture layer; the controls
                 // and dialogs stay above it so their buttons stay tappable.
                 child: Center(
-                  child: (!_useFallbackPlayer && _vlcController != null)
+                  child: (_engine == PlayerEngine.vlc && _vlcController != null)
                       ? VlcPlayer(
+                          // VLC initializes when its platform view is
+                          // created. Without a key Flutter keeps the old
+                          // view for a new controller, which then never
+                          // starts (QA TASK-020 H1).
+                          key: ObjectKey(_vlcController),
                           controller: _vlcController!,
                           aspectRatio: 16 / 9,
                           placeholder: Container(color: Colors.black),
