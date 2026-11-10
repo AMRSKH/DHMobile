@@ -10,8 +10,21 @@ import kotlin.math.roundToInt
 class MainActivity : FlutterActivity() {
     private val volumeChannel = "dev.amscenter.donghua_player/volume"
 
+    // The app's cache folder (Context.getCacheDir), where the posters of
+    // cached_network_image live. Directory.systemTemp in Dart is the code
+    // cache instead (TASK-033 QA).
+    private val storageChannel = "dev.amscenter.donghua_player/storage"
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, storageChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "cacheDir" -> result.success(cacheDir.absolutePath)
+                    else -> result.notImplemented()
+                }
+            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, volumeChannel)
             .setMethodCallHandler { call, result ->

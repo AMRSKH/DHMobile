@@ -1,4 +1,3 @@
-import 'package:flutter/painting.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/debug_log.dart';
 import '../../domain/models/show.dart';
@@ -221,10 +220,5 @@ class StorageService {
       await _settingsBox!.put(keyPlayerEngine, code);
     }
     _memSettings[keyPlayerEngine] = code;
-  }
-
-  Future<void> clearAllCache() async {
-    PaintingBinding.instance.imageCache.clear();
-    PaintingBinding.instance.imageCache.clearLiveImages();
   }
 }

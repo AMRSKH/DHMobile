@@ -2,7 +2,8 @@
 /// the source are never translated.
 enum AppLanguage {
   en('en', 'EN - English'),
-  km('km', 'KH - ភាសាខ្មែរ');
+  km('km', 'KH - ភាសាខ្មែរ'),
+  zh('zh', 'ZH - 中文');
 
   const AppLanguage(this.code, this.label);
 
@@ -114,13 +115,16 @@ enum S {
   clearFavoritesConfirmBody,
   favoritesCleared,
   clearCache,
-  clearCacheDesc,
+  cacheUsage,
+  cacheCalculating,
   cacheCleared,
   sectionAbout,
   versionLine,
-  aboutPlayer,
-  aboutContentSource,
   credits,
+  creditPlayer,
+  creditContents,
+  development,
+  developmentBody,
   privacy,
   privacyBody,
 
@@ -228,17 +232,22 @@ const Map<S, String> _en = {
       'All saved shows will be removed from your library.',
   S.favoritesCleared: 'Favorites cleared',
   S.clearCache: 'Clear Cache',
-  S.clearCacheDesc: 'Free up memory and temporary image cache',
-  S.cacheCleared: 'Image and memory cache cleared',
+  S.cacheUsage: '{used} of {limit}',
+  S.cacheCalculating: 'Measuring...',
+  S.cacheCleared: 'Cache cleared',
   S.sectionAbout: 'ABOUT',
-  S.versionLine: 'Version {version} (build {build})',
-  S.aboutPlayer: 'Player',
-  S.aboutContentSource: 'Content source',
+  S.versionLine: 'Version {version}',
   S.credits: 'Credits',
+  S.creditPlayer: 'Player',
+  S.creditContents: 'Contents',
+  S.development: 'Development',
+  S.developmentBody: 'AMSCenter by AMSDev',
   S.privacy: 'Privacy',
   S.privacyBody:
-      'No ads. No tracking. History and favorites are stored only on this '
-      'device.',
+      'No ads.\n'
+      'No tracking.\n'
+      'History and favorites\n'
+      'are stored only on this device.',
 
   S.playerResolving: 'Resolving stream sources...',
   S.playerError: 'Error: {error}',
@@ -345,16 +354,21 @@ const Map<S, String> _km = {
       'រឿងដែលបានរក្សាទុកទាំងអស់នឹងត្រូវដកចេញពីបណ្ណាល័យរបស់អ្នក។',
   S.favoritesCleared: 'បានលុបបញ្ជីចំណូលចិត្ត',
   S.clearCache: 'សម្អាត Cache',
-  S.clearCacheDesc: 'សម្អាតអង្គចងចាំ និងរូបភាពបណ្ដោះអាសន្ន',
-  S.cacheCleared: 'បានសម្អាត Cache រូបភាព និងអង្គចងចាំ',
+  S.cacheUsage: '{used} ក្នុងចំណោម {limit}',
+  S.cacheCalculating: 'កំពុងវាស់...',
+  S.cacheCleared: 'បានសម្អាត Cache',
   S.sectionAbout: 'អំពីកម្មវិធី',
-  S.versionLine: 'កំណែ {version} (build {build})',
-  S.aboutPlayer: 'កម្មវិធីចាក់វីដេអូ',
-  S.aboutContentSource: 'ប្រភពមាតិកា',
-  S.credits: 'អ្នកបង្កើត',
+  S.versionLine: 'កំណែ {version}',
+  S.credits: 'ការទទួលស្គាល់',
+  S.creditPlayer: 'កម្មវិធីចាក់',
+  S.creditContents: 'មាតិកា',
+  S.development: 'ការអភិវឌ្ឍ',
+  S.developmentBody: 'AMSCenter ដោយ AMSDev',
   S.privacy: 'ឯកជនភាព',
   S.privacyBody:
-      'គ្មានការផ្សាយពាណិជ្ជកម្ម។ គ្មានការតាមដាន។ ប្រវត្តិ និងចំណូលចិត្ត'
+      'គ្មានការផ្សាយពាណិជ្ជកម្ម។\n'
+      'គ្មានការតាមដាន។\n'
+      'ប្រវត្តិ និងចំណូលចិត្ត\n'
       'ត្រូវបានរក្សាទុកតែលើឧបករណ៍នេះប៉ុណ្ណោះ។',
 
   S.playerResolving: 'កំពុងស្វែងរកប្រភពវីដេអូ...',
@@ -375,6 +389,126 @@ const Map<S, String> _km = {
   S.pause: 'ផ្អាក',
   S.playbackSpeed: 'ល្បឿនចាក់',
   S.nextEpisode: 'ភាគបន្ទាប់',
+};
+
+/// Simplified Chinese (TASK-034).
+const Map<S, String> _zh = {
+  S.explore: '发现',
+  S.library: '片库',
+  S.settings: '设置',
+  S.retry: '重试',
+  S.cancel: '取消',
+  S.refresh: '刷新',
+  S.clear: '清除',
+  S.clearAll: '全部清除',
+  S.loadFailed: '无法加载。请检查网络后重试。',
+
+  S.weekdayMon: '周一',
+  S.weekdayTue: '周二',
+  S.weekdayWed: '周三',
+  S.weekdayThu: '周四',
+  S.weekdayFri: '周五',
+  S.weekdaySat: '周六',
+  S.weekdaySun: '周日',
+
+  S.categorySchedule: '更新表',
+  S.categoryNewSeries: '新番',
+  S.categoryPopular: '热门',
+  S.released: '已更新',
+  S.exploreEmptyDay: '这一天没有排期的节目。',
+  S.exploreEmptyList: '暂无内容。',
+
+  S.search: '搜索',
+  S.searchHint: '搜索国漫（如 BTTH、Soul Land）…',
+  S.searchEmpty: '未找到国漫。请换个标题试试。',
+
+  S.favoriteAdd: '加入收藏',
+  S.favoriteRemove: '取消收藏',
+  S.favoriteAdded: '已加入收藏',
+  S.favoriteRemoved: '已取消收藏',
+  S.continueEpisode: '继续观看第 {number} 集（{time}）',
+  S.watchNow: '立即观看 • {title}',
+  S.synopsis: '简介',
+  S.episodes: '剧集',
+  S.episodesCount: '剧集（{count}）',
+  S.switchToList: '切换为列表',
+  S.switchToGrid: '切换为网格',
+  S.episodesLoadFailed: '无法加载剧集。',
+  S.noEpisodes: '暂无剧集。',
+  S.watchedProgress: '已观看 {position} / {duration}',
+  S.episodeShort: '第 {number} 集',
+
+  S.libraryTitle: '我的片库',
+  S.history: '历史',
+  S.favorites: '收藏',
+  S.historyEmptyTitle: '暂无观看历史',
+  S.historyEmptyBody: '开始观看的剧集会显示在这里。',
+  S.historyCount: '{count} 项',
+  S.clearHistoryQuestion: '清除观看历史？',
+  S.clearHistoryWarning: '所有观看进度和续播位置都将被删除。',
+  S.favoritesEmptyTitle: '暂无收藏的国漫',
+  S.favoritesEmptyBody: '点按任意国漫上的爱心图标即可收藏到这里。',
+  S.episode: '集数',
+
+  S.sectionGeneral: '常规',
+  S.displayLanguage: '显示语言',
+  S.chooseLanguage: '选择显示语言',
+  S.sectionPlayback: '播放偏好',
+  S.defaultQuality: '默认画质',
+  S.chooseQuality: '选择默认画质',
+  S.qualityAuto: '自动',
+  S.preferredSubtitle: '首选字幕语言',
+  S.chooseSubtitle: '首选字幕',
+  S.videoPlayer: '视频播放器',
+  S.chooseVideoPlayer: '选择视频播放器',
+  S.subtitleEnglish: '英语',
+  S.subtitleIndonesian: '印尼语',
+  S.subtitleNone: '无',
+  S.sectionData: '数据与存储',
+  S.clearHistory: '清除观看历史',
+  S.clearHistoryDesc: '删除所有观看进度和历史记录',
+  S.clearHistoryConfirmTitle: '清除历史？',
+  S.clearHistoryConfirmBody: '这将删除所有已记录的观看进度。',
+  S.historyCleared: '观看历史已清除',
+  S.clearFavorites: '清除收藏',
+  S.clearFavoritesDesc: '删除所有已收藏的国漫',
+  S.clearFavoritesConfirmTitle: '清除收藏？',
+  S.clearFavoritesConfirmBody: '所有已收藏的节目都将从片库中移除。',
+  S.favoritesCleared: '收藏已清除',
+  S.clearCache: '清除缓存',
+  S.cacheUsage: '{used} / {limit}',
+  S.cacheCalculating: '正在计算…',
+  S.cacheCleared: '缓存已清除',
+  S.sectionAbout: '关于',
+  S.versionLine: '版本 {version}',
+  S.credits: '致谢',
+  S.creditPlayer: '播放器',
+  S.creditContents: '内容',
+  S.development: '开发',
+  S.developmentBody: 'AMSCenter by AMSDev',
+  S.privacy: '隐私',
+  S.privacyBody:
+      '无广告。\n'
+      '无追踪。\n'
+      '历史和收藏\n'
+      '仅保存在此设备上。',
+
+  S.playerResolving: '正在解析视频源…',
+  S.playerError: '错误：{error}',
+  S.playerNoStreams: '没有可用的视频源。',
+  S.goBack: '返回',
+  S.playerConnecting: '正在连接 {server}（{index}/{total}）',
+  S.playerServerWord: '服务器',
+  S.playerNoServer: '没有服务器能播放这一集。请检查网络后重试。',
+  S.retryStream: '重新播放',
+  S.back: '返回',
+  S.selectSource: '选择服务器 / 画质',
+  S.rewind10: '后退 10 秒',
+  S.forward10: '前进 10 秒',
+  S.play: '播放',
+  S.pause: '暂停',
+  S.playbackSpeed: '播放速度',
+  S.nextEpisode: '下一集',
 };
 
 final RegExp _placeholder = RegExp(r'\{(\w+)\}');
@@ -402,6 +536,8 @@ class AppStrings {
         return _en;
       case AppLanguage.km:
         return _km;
+      case AppLanguage.zh:
+        return _zh;
     }
   }
 

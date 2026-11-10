@@ -17,6 +17,18 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
 
+  static const int _settingsIndex = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    // Owner's choice (TASK-033): a cache above 500 MB is cleared at start, in
+    // the background. Settings measures again when it is done.
+    ref.read(cacheServiceProvider).clearIfOverLimit().then((_) {
+      if (mounted) ref.invalidate(cacheSizeProvider);
+    });
+  }
+
   final List<Widget> _pages = const [
     ExploreScreen(),
     LibraryScreen(),
@@ -31,6 +43,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
+          // Settings stays built in the IndexedStack, so its cache size is
+          // measured again whenever it is opened (TASK-033 QA).
+          if (index == _settingsIndex) ref.invalidate(cacheSizeProvider);
           setState(() {
             _currentIndex = index;
           });

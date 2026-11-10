@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_info.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
-import '../../domain/models/content_source.dart';
+import '../../core/format_bytes.dart';
 import '../../domain/models/player_engine.dart';
 import '../library/library_controller.dart';
 import 'settings_controller.dart';
@@ -100,7 +100,8 @@ class SettingsScreen extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     // Khmer has no capitals to space out, and wide tracking breaks its
     // stacked letters apart.
-    final headerSpacing = settings.language == AppLanguage.km ? 0.0 : 1.1;
+    // Letter spacing suits Latin capitals only, not Khmer or Chinese.
+    final headerSpacing = settings.language == AppLanguage.en ? 1.1 : 0.0;
     const muted = TextStyle(color: AppTheme.textMuted);
     const chevron = Icon(
       Icons.arrow_forward_ios,
@@ -314,7 +315,7 @@ class SettingsScreen extends ConsumerWidget {
               color: Colors.blueAccent,
             ),
             title: Text(s(S.clearCache)),
-            subtitle: Text(s(S.clearCacheDesc), style: muted),
+            subtitle: _CacheUsage(strings: s, style: muted),
             onTap: () async {
               await settingsNotifier.clearCache();
               if (context.mounted) {
@@ -340,36 +341,29 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.info_outline, color: AppTheme.textMuted),
             title: const Text(AppInfo.name),
             subtitle: Text(
-              s.fmt(S.versionLine, {
-                'version': AppInfo.version,
-                'build': AppInfo.buildNumber,
-              }),
+              // The owner wants no build number here (TASK-035).
+              s.fmt(S.versionLine, {'version': AppInfo.version}),
               style: muted,
             ),
           ),
+          // The owner's layout (TASK-033). Product and project names are
+          // not translated.
           ListTile(
             leading: const Icon(
-              Icons.play_circle_outline,
+              Icons.favorite_outline,
               color: AppTheme.textMuted,
             ),
-            title: Text(s(S.aboutPlayer)),
-            subtitle: Text(settings.playerEngine.chain, style: muted),
-          ),
-          ListTile(
-            leading: const Icon(Icons.public, color: AppTheme.textMuted),
-            title: Text(s(S.aboutContentSource)),
+            title: Text(s(S.credits)),
             subtitle: Text(
-              kContentSources.map((s) => s.name).join(', '),
+              '${s(S.creditPlayer)} | ExoPlayer, VLC\n'
+              '${s(S.creditContents)} | DonghuaCLI',
               style: muted,
             ),
           ),
           ListTile(
             leading: const Icon(Icons.code_outlined, color: AppTheme.textMuted),
-            title: Text(s(S.credits)),
-            subtitle: const Text(
-              'Development by AMSCenter\nDeveloper by AMSDev',
-              style: muted,
-            ),
+            title: Text(s(S.development)),
+            subtitle: Text(s(S.developmentBody), style: muted),
           ),
           ListTile(
             leading: const Icon(
@@ -404,6 +398,51 @@ class _SectionHeader extends StatelessWidget {
           letterSpacing: letterSpacing,
         ),
       ),
+    );
+  }
+}
+
+/// The size of the cache folder against the 500 MB limit, as text and a bar
+/// that turns red from 80 % (TASK-033).
+class _CacheUsage extends ConsumerWidget {
+  final AppStrings strings;
+  final TextStyle style;
+
+  const _CacheUsage({required this.strings, required this.style});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final size = ref.watch(cacheSizeProvider);
+    final bytes = size.value;
+    final fraction = bytes == null
+        ? null
+        : (bytes / cacheLimitBytes).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          bytes == null
+              ? strings(S.cacheCalculating)
+              : strings.fmt(S.cacheUsage, {
+                  'used': formatBytes(bytes),
+                  'limit': formatBytes(cacheLimitBytes),
+                }),
+          style: style,
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            // No value while measuring: the bar moves instead.
+            value: fraction,
+            minHeight: 6,
+            backgroundColor: Colors.white12,
+            color: (fraction ?? 0) >= 0.8
+                ? AppTheme.primaryRed
+                : Colors.blueAccent,
+          ),
+        ),
+      ],
     );
   }
 }

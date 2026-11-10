@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../data/storage/cache_service.dart';
 import '../../domain/models/player_engine.dart';
 import '../library/library_controller.dart';
 
@@ -67,11 +68,23 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(playerEngine: engine);
   }
 
+  /// Empties the cache folder and measures it again (TASK-033).
   Future<void> clearCache() async {
-    final storage = ref.read(storageServiceProvider);
-    await storage.clearAllCache();
+    await ref.read(cacheServiceProvider).clear();
+    ref.invalidate(cacheSizeProvider);
   }
 }
+
+/// The app's cache folder. Tests replace it with a temporary folder.
+final cacheServiceProvider = Provider<CacheService>((ref) => CacheService());
+
+/// The cache size the Settings bar measures against (500 MB).
+const int cacheLimitBytes = CacheService.limitBytes;
+
+/// Bytes in the cache folder, measured when Settings shows it.
+final cacheSizeProvider = FutureProvider.autoDispose<int>(
+  (ref) => ref.watch(cacheServiceProvider).sizeBytes(),
+);
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
   SettingsNotifier.new,

@@ -82,6 +82,22 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Inter Khmer Looped, embedded (no download at run time), TASK-034.
+  # Source: github.com/grab/inter-font-extensions release 1.0, SIL Open Font
+  # License 1.1; the license ships with it and is shown in the app's
+  # license list (lib/main.dart).
+  assets:
+    - assets/fonts/inter_khmer_looped/OFL.txt
+
+  fonts:
+    - family: InterKhmerLooped
+      fonts:
+        - asset: assets/fonts/inter_khmer_looped/InterKhmerLooped-Regular.ttf
+        - asset: assets/fonts/inter_khmer_looped/InterKhmerLooped-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/inter_khmer_looped/InterKhmerLooped-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -7,8 +7,14 @@ class AppTheme {
   static const Color cardDark = Color(0xFF1C1F26);
   static const Color textMuted = Color(0xFF757B88);
 
+  /// Embedded font for Khmer letters (TASK-034). It is a fallback: Latin
+  /// text keeps the platform font, and every Khmer glyph, in the app's own
+  /// text and in show titles, is drawn with Inter Khmer Looped.
+  static const String khmerFontFamily = 'InterKhmerLooped';
+
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
+    fontFamilyFallback: const [khmerFontFamily],
     brightness: Brightness.dark,
     scaffoldBackgroundColor: backgroundDark,
     colorScheme: const ColorScheme.dark(
@@ -22,7 +28,10 @@ class AppTheme {
       backgroundColor: backgroundDark,
       elevation: 0,
       centerTitle: false,
+      // AppBar takes this style as it is, without the theme's text theme,
+      // so the Khmer fallback must be named here too (TASK-034 QA).
       titleTextStyle: TextStyle(
+        fontFamilyFallback: [khmerFontFamily],
         fontSize: 20,
         fontWeight: FontWeight.bold,
         color: Colors.white,
@@ -31,9 +40,7 @@ class AppTheme {
     cardTheme: CardThemeData(
       color: cardDark,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

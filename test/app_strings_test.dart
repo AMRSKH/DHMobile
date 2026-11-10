@@ -38,16 +38,39 @@ void main() {
       }
     });
 
-    test('both languages use the same placeholders', () {
+    test('every language uses the placeholders of English', () {
       final en = AppStrings.tableOf(AppLanguage.en);
-      final km = AppStrings.tableOf(AppLanguage.km);
-      for (final key in S.values) {
+      for (final language in AppLanguage.values) {
+        final table = AppStrings.tableOf(language);
+        for (final key in S.values) {
+          expect(
+            _placeholders(table[key]!),
+            _placeholders(en[key]!),
+            reason: 'placeholders of ${key.name} differ in ${language.code}',
+          );
+        }
+      }
+    });
+
+    test('Chinese texts are really Chinese', () {
+      final han = RegExp('[一-鿿]');
+      // Names and a pure number line stay as they are.
+      const latinOnPurpose = {S.developmentBody, S.cacheUsage};
+      for (final entry in AppStrings.tableOf(AppLanguage.zh).entries) {
+        if (latinOnPurpose.contains(entry.key)) continue;
         expect(
-          _placeholders(km[key]!),
-          _placeholders(en[key]!),
-          reason: 'placeholders of ${key.name} differ',
+          han.hasMatch(entry.value),
+          isTrue,
+          reason: '${entry.key.name} has no Chinese character',
         );
       }
+    });
+
+    test('Chinese is offered as ZH - 中文', () {
+      expect(AppLanguage.zh.code, 'zh');
+      expect(AppLanguage.zh.label, 'ZH - 中文');
+      expect(AppLanguage.fromCode('zh'), AppLanguage.zh);
+      expect(const AppStrings(AppLanguage.zh)(S.settings), '设置');
     });
 
     test('Khmer texts use Latin digits', () {
@@ -91,22 +114,16 @@ void main() {
     });
 
     test('fmt fills the placeholders', () {
-      expect(
-        en.fmt(S.versionLine, {'version': '1.0.3', 'build': '4'}),
-        'Version 1.0.3 (build 4)',
-      );
-      expect(
-        km.fmt(S.versionLine, {'version': '1.0.3', 'build': '4'}),
-        'កំណែ 1.0.3 (build 4)',
-      );
+      expect(en.fmt(S.versionLine, {'version': '1.0.3'}), 'Version 1.0.3');
+      expect(km.fmt(S.versionLine, {'version': '1.0.3'}), 'កំណែ 1.0.3');
       expect(en.fmt(S.episodesCount, {'count': 12}), 'Episodes (12)');
       expect(km.fmt(S.episodeShort, {'number': 7}), 'ភាគ 7');
     });
 
     test('fmt leaves an unknown placeholder and does not expand values', () {
       expect(
-        en.fmt(S.versionLine, {'version': '1'}),
-        'Version 1 (build {build})',
+        en.fmt(S.watchedProgress, {'position': '1:00'}),
+        'Watched 1:00 / {duration}',
       );
       expect(
         en.fmt(S.playerConnecting, {
