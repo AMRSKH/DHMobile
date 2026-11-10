@@ -50,5 +50,25 @@ void main() {
         'Episode 1.5 • Episode 1',
       );
     });
+
+    test('uses the episode word of the display language', () {
+      // Titles of the source stay English, so "Episode 2" still only
+      // repeats the number.
+      expect(
+        historyEpisodeLabel('2', 'Episode 2', episodeWord: 'ភាគ'),
+        'ភាគ 2',
+      );
+      expect(historyEpisodeLabel('2', 'Ep 02', episodeWord: 'ភាគ'), 'ភាគ 2');
+      expect(historyEpisodeLabel('7', '', episodeWord: 'ភាគ'), 'ភាគ 7');
+      expect(
+        historyEpisodeLabel('x', 'episode x', episodeWord: 'ភាគ'),
+        'ភាគ x',
+      );
+      expect(historyEpisodeLabel('2', 'ភាគ 2', episodeWord: 'ភាគ'), 'ភាគ 2');
+      expect(
+        historyEpisodeLabel('2', 'The Awakening', episodeWord: 'ភាគ'),
+        'ភាគ 2 • The Awakening',
+      );
+    });
   });
 }

@@ -12,6 +12,7 @@ class StorageService {
 
   static const String keyDefaultQuality = 'default_quality';
   static const String keyPreferredSubtitle = 'preferred_subtitle';
+  static const String keyLanguage = 'display_language';
 
   Box? _favoritesBox;
   Box? _historyBox;
@@ -187,6 +188,22 @@ class StorageService {
       await _settingsBox!.put(keyPreferredSubtitle, sub);
     }
     _memSettings[keyPreferredSubtitle] = sub;
+  }
+
+  /// Code of the display language, 'en' when nothing was stored yet.
+  String getLanguageCode() {
+    if (_settingsBox != null && _settingsBox!.isOpen) {
+      final value = _settingsBox!.get(keyLanguage, defaultValue: 'en');
+      return value is String ? value : 'en';
+    }
+    return _memSettings[keyLanguage] ?? 'en';
+  }
+
+  Future<void> setLanguageCode(String code) async {
+    if (_settingsBox != null && _settingsBox!.isOpen) {
+      await _settingsBox!.put(keyLanguage, code);
+    }
+    _memSettings[keyLanguage] = code;
   }
 
   Future<void> clearAllCache() async {

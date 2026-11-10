@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/debug_log.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../library/library_controller.dart';
 import '../player/player_screen.dart';
+import '../settings/settings_controller.dart';
 import 'detail_controller.dart';
 
 class DetailScreen extends ConsumerStatefulWidget {
@@ -33,6 +36,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
     final episodesAsync = ref.watch(showEpisodesProvider(widget.show.id));
     final favorites = ref.watch(favoritesProvider);
     final isFav = favorites.any((s) => s.id == widget.show.id);
@@ -58,7 +62,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       : Icons.favorite_border_rounded,
                   color: isFav ? AppTheme.primaryRed : Colors.white,
                 ),
-                tooltip: isFav ? 'Remove Favorite' : 'Add to Favorites',
+                tooltip: isFav ? s(S.favoriteRemove) : s(S.favoriteAdd),
                 onPressed: () {
                   ref
                       .read(favoritesProvider.notifier)
@@ -67,7 +71,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     SnackBar(
                       duration: const Duration(seconds: 1),
                       content: Text(
-                        isFav ? 'Removed from favorites' : 'Added to favorites',
+                        isFav ? s(S.favoriteRemoved) : s(S.favoriteAdded),
                       ),
                     ),
                   );
@@ -87,6 +91,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                             'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                       },
                       fit: BoxFit.cover,
+                      placeholder: (_, _) => const SkeletonBox(),
                       errorWidget: (_, _, _) =>
                           Container(color: const Color(0xFF181A20)),
                     )
@@ -173,7 +178,10 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                               size: 28,
                             ),
                             label: Text(
-                              'Continue Ep $epNumStr (${_formatTime(lastWatched.positionMs)})',
+                              s.fmt(S.continueEpisode, {
+                                'number': epNumStr,
+                                'time': _formatTime(lastWatched.positionMs),
+                              }),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -204,7 +212,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                           ),
                           icon: const Icon(Icons.play_arrow_rounded, size: 28),
                           label: Text(
-                            'Watch Now • ${episodes.first.title}',
+                            s.fmt(S.watchNow, {'title': episodes.first.title}),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -221,9 +229,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                   const SizedBox(height: 16),
                   if (widget.show.synopsis != null &&
                       widget.show.synopsis!.isNotEmpty) ...[
-                    const Text(
-                      'Synopsis',
-                      style: TextStyle(
+                    Text(
+                      s(S.synopsis),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -256,16 +264,16 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                     children: [
                       episodesAsync.maybeWhen(
                         data: (episodes) => Text(
-                          'Episodes (${episodes.length})',
+                          s.fmt(S.episodesCount, {'count': episodes.length}),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        orElse: () => const Text(
-                          'Episodes',
-                          style: TextStyle(
+                        orElse: () => Text(
+                          s(S.episodes),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -278,8 +286,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                           color: Colors.white70,
                         ),
                         tooltip: _isGridView
-                            ? 'Switch to List'
-                            : 'Switch to Grid',
+                            ? s(S.switchToList)
+                            : s(S.switchToGrid),
                         onPressed: () {
                           setState(() {
                             _isGridView = !_isGridView;
@@ -293,11 +301,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
             ),
           ),
           episodesAsync.when(
-            loading: () => const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (err, _) => SliverFillRemaining(
+            loading: () => SliverSkeletonEpisodes(grid: _isGridView),
+            error: (_, _) => SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Padding(
@@ -312,7 +317,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Failed to load episodes: $err',
+                        s(S.episodesLoadFailed),
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.white70),
                       ),
@@ -321,7 +326,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                         onPressed: () {
                           ref.invalidate(showEpisodesProvider(widget.show.id));
                         },
-                        child: const Text('Retry'),
+                        child: Text(s(S.retry)),
                       ),
                     ],
                   ),
@@ -338,12 +343,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                 );
               }
               if (episodes.isEmpty) {
-                return const SliverFillRemaining(
+                return SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      'No episodes available.',
-                      style: TextStyle(color: Colors.white54),
+                      s(S.noEpisodes),
+                      style: const TextStyle(color: Colors.white54),
                     ),
                   ),
                 );
@@ -365,9 +370,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final ep = episodes[index];
-                      final epLabel = ep.number > 0
-                          ? 'EP ${ep.number.toInt()}'
-                          : 'EP ${index + 1}';
+                      final epLabel = s.fmt(S.episodeShort, {
+                        'number': ep.number > 0 ? ep.number.toInt() : index + 1,
+                      });
                       final histItem = historyByEpisode[ep.id];
 
                       return InkWell(
@@ -479,7 +484,14 @@ class _DetailScreenState extends ConsumerState<DetailScreen> {
                             ),
                             subtitle: histItem != null
                                 ? Text(
-                                    'Watched ${_formatTime(histItem.positionMs)} / ${_formatTime(histItem.durationMs)}',
+                                    s.fmt(S.watchedProgress, {
+                                      'position': _formatTime(
+                                        histItem.positionMs,
+                                      ),
+                                      'duration': _formatTime(
+                                        histItem.durationMs,
+                                      ),
+                                    }),
                                     style: const TextStyle(
                                       color: AppTheme.primaryRed,
                                       fontSize: 12,

@@ -26,14 +26,20 @@ Dependencies flow `domain` → `data` → `features`. State lives in Riverpod pr
 ```text
 lib/
   main.dart                 App entry, ProviderScope, storage init
-  core/                     Theme and debug logging (DLog)
-  domain/models/            Show, Episode, StreamSource, WatchHistoryItem
+  core/                     Theme, debug logging (DLog), AppInfo
+  core/l10n/                AppStrings: English and Khmer UI text
+  core/widgets/             Shared widgets (skeleton placeholders)
+  domain/models/            Show, Episode, StreamSource, WatchHistoryItem,
+                            ScheduleEntry
   domain/providers/         DonghuaStreamProvider contract
-  data/providers/           AnimeXin scraper, StreamResolver, source filter
+  data/providers/           AnimeXin scraper and listing parser,
+                            StreamResolver, source filter
   data/storage/             Hive storage service
   features/                 One folder per area: splash, home, explore,
                             search, detail, player, library, settings
-test/                       Widget and provider tests
+test/                       Widget, provider, and parser tests
+  fixtures/                 Saved AnimeXin HTML for the parser tests
+  support/                  Fakes shared by tests (fake stream provider)
 android/                    Android host project
 team/                       Roles, task records, command playbooks
 .githooks/                  Versioned Git hooks
@@ -72,6 +78,8 @@ Release APKs in the repo root are ignored by Git. Do not rebuild, replace, or de
 - New code follows `domain` → `data` → `features`. Screens do not call scrapers or storage directly.
 - Keep changes small and on task. Do not refactor unrelated code or edit generated files.
 - Add or update tests in `test/` when behavior changes.
+- User-visible app text goes through `ref.watch(stringsProvider)` and an `S` key in `lib/core/l10n/app_strings.dart`, with both an English and a Khmer text. `test/app_strings_test.dart` fails when a key misses a language. Titles from the source are not translated.
+- Change the `version:` line of `pubspec.yaml` and `AppInfo.version` / `AppInfo.buildNumber` in `lib/core/app_info.dart` together. `AppInfo.name` must equal `android:label` in `AndroidManifest.xml`. `test/app_info_test.dart` checks both.
 
 ## Naming conventions
 

@@ -1,6 +1,7 @@
 import 'package:donghua_player/domain/models/stream_source.dart';
 import 'package:donghua_player/features/player/widgets/player_controls.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -11,36 +12,39 @@ void main() {
     var menuClosed = 0;
     double? selectedSpeed;
 
+    // PlayerControls reads its tooltips from the strings provider.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PlayerControls(
-            title: 'Test Show',
-            episodeTitle: 'Episode 1',
-            isPlaying: true,
-            isBuffering: true,
-            position: const Duration(seconds: 30),
-            duration: const Duration(minutes: 20),
-            speed: 1.0,
-            sources: const [
-              StreamSource(
-                url: 'https://example.com/video.mp4',
-                server: 'Hardsub English OK.ru 720p',
-                quality: '720p',
-              ),
-            ],
-            currentSourceIndex: 0,
-            hasNextEpisode: false,
-            onPlayPause: () => playPauseTaps++,
-            onSeek: (_) {},
-            onSeekBack10: () {},
-            onSeekForward10: () {},
-            onSpeedChanged: (value) => selectedSpeed = value,
-            onSourceChanged: (_) {},
-            onNextEpisode: () {},
-            onBack: () {},
-            onMenuOpened: () => menuOpened++,
-            onMenuClosed: () => menuClosed++,
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlayerControls(
+              title: 'Test Show',
+              episodeTitle: 'Episode 1',
+              isPlaying: true,
+              isBuffering: true,
+              position: const Duration(seconds: 30),
+              duration: const Duration(minutes: 20),
+              speed: 1.0,
+              sources: const [
+                StreamSource(
+                  url: 'https://example.com/video.mp4',
+                  server: 'Hardsub English OK.ru 720p',
+                  quality: '720p',
+                ),
+              ],
+              currentSourceIndex: 0,
+              hasNextEpisode: false,
+              onPlayPause: () => playPauseTaps++,
+              onSeek: (_) {},
+              onSeekBack10: () {},
+              onSeekForward10: () {},
+              onSpeedChanged: (value) => selectedSpeed = value,
+              onSourceChanged: (_) {},
+              onNextEpisode: () {},
+              onBack: () {},
+              onMenuOpened: () => menuOpened++,
+              onMenuClosed: () => menuClosed++,
+            ),
           ),
         ),
       ),
@@ -75,43 +79,46 @@ void main() {
     var menuClosed = 0;
     int? selectedSource;
 
+    // PlayerControls reads its tooltips from the strings provider.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PlayerControls(
-            title: 'Test Show',
-            episodeTitle: 'Episode 1',
-            isPlaying: true,
-            isBuffering: false,
-            position: Duration.zero,
-            duration: const Duration(minutes: 20),
-            speed: 1.0,
-            sources: const [
-              StreamSource(
-                url: 'https://example.com/a.mp4',
-                server:
-                    'Hardsub Indonesia, English Subtitle Mirror Server '
-                    'With A Very Long Descriptive Name OK.ru 144p',
-                quality: '144p',
-              ),
-              StreamSource(
-                url: 'https://example.com/b.mp4',
-                server: 'Dailymotion Fast',
-                quality: 'Multi-Bitrate (HLS)',
-              ),
-            ],
-            currentSourceIndex: 0,
-            hasNextEpisode: false,
-            onPlayPause: () {},
-            onSeek: (_) {},
-            onSeekBack10: () {},
-            onSeekForward10: () {},
-            onSpeedChanged: (_) {},
-            onSourceChanged: (index) => selectedSource = index,
-            onNextEpisode: () {},
-            onBack: () {},
-            onMenuOpened: () => menuOpened++,
-            onMenuClosed: () => menuClosed++,
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlayerControls(
+              title: 'Test Show',
+              episodeTitle: 'Episode 1',
+              isPlaying: true,
+              isBuffering: false,
+              position: Duration.zero,
+              duration: const Duration(minutes: 20),
+              speed: 1.0,
+              sources: const [
+                StreamSource(
+                  url: 'https://example.com/a.mp4',
+                  server:
+                      'Hardsub Indonesia, English Subtitle Mirror Server '
+                      'With A Very Long Descriptive Name OK.ru 144p',
+                  quality: '144p',
+                ),
+                StreamSource(
+                  url: 'https://example.com/b.mp4',
+                  server: 'Dailymotion Fast',
+                  quality: 'Multi-Bitrate (HLS)',
+                ),
+              ],
+              currentSourceIndex: 0,
+              hasNextEpisode: false,
+              onPlayPause: () {},
+              onSeek: (_) {},
+              onSeekBack10: () {},
+              onSeekForward10: () {},
+              onSpeedChanged: (_) {},
+              onSourceChanged: (index) => selectedSource = index,
+              onNextEpisode: () {},
+              onBack: () {},
+              onMenuOpened: () => menuOpened++,
+              onMenuClosed: () => menuClosed++,
+            ),
           ),
         ),
       ),

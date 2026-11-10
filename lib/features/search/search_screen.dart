@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/app_info.dart';
 import '../../core/debug_log.dart';
+import '../../core/l10n/app_strings.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../domain/models/show.dart';
 import '../detail/detail_screen.dart';
+import '../settings/settings_controller.dart';
 import 'search_controller.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -32,14 +36,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(searchControllerProvider);
+    final s = ref.watch(stringsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DonghuaPlayer'),
+        title: const Text(AppInfo.name),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: s(S.refresh),
             onPressed: () {
               DLog.event('search.refresh', _queryController.text);
               ref
@@ -58,7 +63,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _onSearch(),
               decoration: InputDecoration(
-                hintText: 'Search Donghua (e.g. BTTH, Soul Land)...',
+                hintText: s(S.searchHint),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF757B88)),
                 suffixIcon: _queryController.text.isNotEmpty
                     ? IconButton(
@@ -78,8 +83,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           Expanded(
             child: searchState.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
+              loading: () => const SkeletonPosterGrid(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                childAspectRatio: 0.65,
+                mainAxisSpacing: 14,
+              ),
+              // The controller writes the error to the debug log.
+              error: (_, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
@@ -92,7 +102,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Failed to load: $error',
+                        s(S.loadFailed),
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.white70),
                       ),
@@ -100,7 +110,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ElevatedButton.icon(
                         onPressed: _onSearch,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Try Again'),
+                        label: Text(s(S.retry)),
                       ),
                     ],
                   ),
@@ -108,10 +118,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               data: (shows) {
                 if (shows.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Text(
-                      'No donghua found. Try another title.',
-                      style: TextStyle(color: Colors.white54, fontSize: 16),
+                      s(S.searchEmpty),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 16,
+                      ),
                     ),
                   );
                 }
@@ -184,18 +198,7 @@ class _ShowCard extends StatelessWidget {
                                 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                           },
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: const Color(0xFF1C1F26),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
+                          placeholder: (context, url) => const SkeletonBox(),
                           errorWidget: (context, url, error) => Container(
                             color: const Color(0xFF1C1F26),
                             child: const Icon(

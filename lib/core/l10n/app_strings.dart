@@ -1,0 +1,415 @@
+/// Display languages of the app's own text. Titles and episode names from
+/// the source are never translated.
+enum AppLanguage {
+  en('en', 'EN - English'),
+  km('km', 'KH - ភាសាខ្មែរ');
+
+  const AppLanguage(this.code, this.label);
+
+  /// Stored in the settings box.
+  final String code;
+
+  /// Shown in Settings, the same in every language.
+  final String label;
+
+  /// Unknown or missing codes fall back to English.
+  static AppLanguage fromCode(String? code) {
+    for (final language in AppLanguage.values) {
+      if (language.code == code) return language;
+    }
+    return AppLanguage.en;
+  }
+}
+
+/// Every text the app shows by itself. Placeholders are written `{name}` and
+/// filled by [AppStrings.fmt].
+enum S {
+  // Navigation and shared actions
+  explore,
+  library,
+  settings,
+  retry,
+  cancel,
+  refresh,
+  clear,
+  clearAll,
+  loadFailed,
+
+  // Weekdays, short
+  weekdayMon,
+  weekdayTue,
+  weekdayWed,
+  weekdayThu,
+  weekdayFri,
+  weekdaySat,
+  weekdaySun,
+
+  // Explore
+  categorySchedule,
+  categoryNewSeries,
+  categoryPopular,
+  released,
+  exploreEmptyDay,
+  exploreEmptyList,
+
+  // Search
+  searchHint,
+  searchEmpty,
+
+  // Detail
+  favoriteAdd,
+  favoriteRemove,
+  favoriteAdded,
+  favoriteRemoved,
+  continueEpisode,
+  watchNow,
+  synopsis,
+  episodes,
+  episodesCount,
+  switchToList,
+  switchToGrid,
+  episodesLoadFailed,
+  noEpisodes,
+  watchedProgress,
+  episodeShort,
+
+  // Library
+  libraryTitle,
+  history,
+  favorites,
+  historyEmptyTitle,
+  historyEmptyBody,
+  historyCount,
+  clearHistoryQuestion,
+  clearHistoryWarning,
+  favoritesEmptyTitle,
+  favoritesEmptyBody,
+  episode,
+
+  // Settings
+  sectionGeneral,
+  displayLanguage,
+  chooseLanguage,
+  sectionPlayback,
+  defaultQuality,
+  chooseQuality,
+  qualityAuto,
+  preferredSubtitle,
+  chooseSubtitle,
+  subtitleEnglish,
+  subtitleIndonesian,
+  subtitleNone,
+  sectionData,
+  clearHistory,
+  clearHistoryDesc,
+  clearHistoryConfirmTitle,
+  clearHistoryConfirmBody,
+  historyCleared,
+  clearFavorites,
+  clearFavoritesDesc,
+  clearFavoritesConfirmTitle,
+  clearFavoritesConfirmBody,
+  favoritesCleared,
+  clearCache,
+  clearCacheDesc,
+  cacheCleared,
+  sectionAbout,
+  versionLine,
+  aboutPlayer,
+  aboutContentSource,
+  credits,
+  privacy,
+  privacyBody,
+
+  // Player
+  playerResolving,
+  playerError,
+  playerNoStreams,
+  goBack,
+  playerConnecting,
+  playerServerWord,
+  playerNoServer,
+  retryStream,
+  back,
+  selectSource,
+  rewind10,
+  forward10,
+  play,
+  pause,
+  playbackSpeed,
+  nextEpisode,
+}
+
+const Map<S, String> _en = {
+  S.explore: 'Explore',
+  S.library: 'Library',
+  S.settings: 'Settings',
+  S.retry: 'Retry',
+  S.cancel: 'Cancel',
+  S.refresh: 'Refresh',
+  S.clear: 'Clear',
+  S.clearAll: 'Clear All',
+  S.loadFailed: 'Could not load. Check your connection and try again.',
+
+  S.weekdayMon: 'Mon',
+  S.weekdayTue: 'Tue',
+  S.weekdayWed: 'Wed',
+  S.weekdayThu: 'Thu',
+  S.weekdayFri: 'Fri',
+  S.weekdaySat: 'Sat',
+  S.weekdaySun: 'Sun',
+
+  S.categorySchedule: 'Schedule',
+  S.categoryNewSeries: 'New Series',
+  S.categoryPopular: 'Popular',
+  S.released: 'Released',
+  S.exploreEmptyDay: 'No shows are scheduled for this day.',
+  S.exploreEmptyList: 'Nothing to show yet.',
+
+  S.searchHint: 'Search Donghua (e.g. BTTH, Soul Land)...',
+  S.searchEmpty: 'No donghua found. Try another title.',
+
+  S.favoriteAdd: 'Add to Favorites',
+  S.favoriteRemove: 'Remove Favorite',
+  S.favoriteAdded: 'Added to favorites',
+  S.favoriteRemoved: 'Removed from favorites',
+  S.continueEpisode: 'Continue Ep {number} ({time})',
+  S.watchNow: 'Watch Now • {title}',
+  S.synopsis: 'Synopsis',
+  S.episodes: 'Episodes',
+  S.episodesCount: 'Episodes ({count})',
+  S.switchToList: 'Switch to List',
+  S.switchToGrid: 'Switch to Grid',
+  S.episodesLoadFailed: 'Could not load the episodes.',
+  S.noEpisodes: 'No episodes available.',
+  S.watchedProgress: 'Watched {position} / {duration}',
+  S.episodeShort: 'EP {number}',
+
+  S.libraryTitle: 'My Library',
+  S.history: 'History',
+  S.favorites: 'Favorites',
+  S.historyEmptyTitle: 'No watch history yet',
+  S.historyEmptyBody: 'Episodes you start watching will appear here.',
+  S.historyCount: '{count} items',
+  S.clearHistoryQuestion: 'Clear Watch History?',
+  S.clearHistoryWarning: 'All your progress and resume points will be removed.',
+  S.favoritesEmptyTitle: 'No favorite donghua yet',
+  S.favoritesEmptyBody: 'Tap the heart icon on any donghua to save it here.',
+  S.episode: 'Episode',
+
+  S.sectionGeneral: 'GENERAL',
+  S.displayLanguage: 'Display Language',
+  S.chooseLanguage: 'Choose Display Language',
+  S.sectionPlayback: 'PLAYBACK PREFERENCES',
+  S.defaultQuality: 'Default Stream Quality',
+  S.chooseQuality: 'Choose Default Quality',
+  S.qualityAuto: 'Auto',
+  S.preferredSubtitle: 'Preferred Subtitle Language',
+  S.chooseSubtitle: 'Preferred Subtitle',
+  S.subtitleEnglish: 'English',
+  S.subtitleIndonesian: 'Indonesian',
+  S.subtitleNone: 'None',
+  S.sectionData: 'DATA & STORAGE',
+  S.clearHistory: 'Clear Watch History',
+  S.clearHistoryDesc: 'Remove all watched progress and history entries',
+  S.clearHistoryConfirmTitle: 'Clear History?',
+  S.clearHistoryConfirmBody: 'This will erase all recorded watch progress.',
+  S.historyCleared: 'Watch history cleared',
+  S.clearFavorites: 'Clear Favorites',
+  S.clearFavoritesDesc: 'Remove all saved donghua favorites',
+  S.clearFavoritesConfirmTitle: 'Clear Favorites?',
+  S.clearFavoritesConfirmBody:
+      'All saved shows will be removed from your library.',
+  S.favoritesCleared: 'Favorites cleared',
+  S.clearCache: 'Clear Cache',
+  S.clearCacheDesc: 'Free up memory and temporary image cache',
+  S.cacheCleared: 'Image and memory cache cleared',
+  S.sectionAbout: 'ABOUT',
+  S.versionLine: 'Version {version} (build {build})',
+  S.aboutPlayer: 'Player',
+  S.aboutContentSource: 'Content source',
+  S.credits: 'Credits',
+  S.privacy: 'Privacy',
+  S.privacyBody:
+      'No ads. No tracking. History and favorites are stored only on this '
+      'device.',
+
+  S.playerResolving: 'Resolving stream sources...',
+  S.playerError: 'Error: {error}',
+  S.playerNoStreams: 'No active streams available.',
+  S.goBack: 'Go Back',
+  S.playerConnecting: 'Connecting to {server} ({index}/{total})',
+  S.playerServerWord: 'server',
+  S.playerNoServer:
+      'No server could play this episode. Check your connection and retry.',
+  S.retryStream: 'Retry Stream',
+  S.back: 'Back',
+  S.selectSource: 'Select Server / Quality',
+  S.rewind10: 'Rewind 10 seconds',
+  S.forward10: 'Forward 10 seconds',
+  S.play: 'Play',
+  S.pause: 'Pause',
+  S.playbackSpeed: 'Playback Speed',
+  S.nextEpisode: 'Next Episode',
+};
+
+const Map<S, String> _km = {
+  S.explore: 'រុករក',
+  S.library: 'បណ្ណាល័យ',
+  S.settings: 'ការកំណត់',
+  S.retry: 'ព្យាយាមម្ដងទៀត',
+  S.cancel: 'បោះបង់',
+  S.refresh: 'ផ្ទុកឡើងវិញ',
+  S.clear: 'លុប',
+  S.clearAll: 'លុបទាំងអស់',
+  S.loadFailed:
+      'មិនអាចផ្ទុកបានទេ។ សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិត រួចព្យាយាមម្ដងទៀត។',
+
+  S.weekdayMon: 'ច័ន្ទ',
+  S.weekdayTue: 'អង្គារ',
+  S.weekdayWed: 'ពុធ',
+  S.weekdayThu: 'ព្រហ',
+  S.weekdayFri: 'សុក្រ',
+  S.weekdaySat: 'សៅរ៍',
+  S.weekdaySun: 'អាទិត្យ',
+
+  S.categorySchedule: 'កាលវិភាគ',
+  S.categoryNewSeries: 'រឿងថ្មី',
+  S.categoryPopular: 'ពេញនិយម',
+  S.released: 'ចេញហើយ',
+  S.exploreEmptyDay: 'គ្មានរឿងក្នុងកាលវិភាគសម្រាប់ថ្ងៃដែលបានជ្រើសទេ។',
+  S.exploreEmptyList: 'មិនទាន់មានរឿងសម្រាប់បង្ហាញទេ។',
+
+  S.searchHint: 'ស្វែងរក Donghua (ឧ. BTTH, Soul Land)...',
+  S.searchEmpty: 'រកមិនឃើញ Donghua ទេ។ សូមសាកចំណងជើងផ្សេង។',
+
+  S.favoriteAdd: 'បន្ថែមទៅចំណូលចិត្ត',
+  S.favoriteRemove: 'ដកចេញពីចំណូលចិត្ត',
+  S.favoriteAdded: 'បានបន្ថែមទៅចំណូលចិត្ត',
+  S.favoriteRemoved: 'បានដកចេញពីចំណូលចិត្ត',
+  S.continueEpisode: 'មើលបន្ត ភាគ {number} ({time})',
+  S.watchNow: 'មើលឥឡូវនេះ • {title}',
+  S.synopsis: 'សាច់រឿងសង្ខេប',
+  S.episodes: 'បញ្ជីភាគ',
+  S.episodesCount: 'បញ្ជីភាគ ({count})',
+  S.switchToList: 'បង្ហាញជាបញ្ជី',
+  S.switchToGrid: 'បង្ហាញជាក្រឡា',
+  S.episodesLoadFailed: 'មិនអាចផ្ទុកបញ្ជីភាគបានទេ។',
+  S.noEpisodes: 'មិនទាន់មានភាគទេ។',
+  S.watchedProgress: 'បានមើល {position} / {duration}',
+  S.episodeShort: 'ភាគ {number}',
+
+  S.libraryTitle: 'បណ្ណាល័យរបស់ខ្ញុំ',
+  S.history: 'ប្រវត្តិ',
+  S.favorites: 'ចំណូលចិត្ត',
+  S.historyEmptyTitle: 'មិនទាន់មានប្រវត្តិការមើលទេ',
+  S.historyEmptyBody: 'ភាគដែលអ្នកចាប់ផ្ដើមមើលនឹងបង្ហាញនៅទីនេះ។',
+  S.historyCount: '{count} ភាគ',
+  S.clearHistoryQuestion: 'លុបប្រវត្តិការមើល?',
+  S.clearHistoryWarning: 'វឌ្ឍនភាពការមើល និងចំណុចមើលបន្តទាំងអស់នឹងត្រូវលុប។',
+  S.favoritesEmptyTitle: 'មិនទាន់មាន Donghua ក្នុងចំណូលចិត្តទេ',
+  S.favoritesEmptyBody: 'ចុចរូបបេះដូងលើ Donghua ណាមួយ ដើម្បីរក្សាទុកនៅទីនេះ។',
+  S.episode: 'ភាគ',
+
+  S.sectionGeneral: 'ទូទៅ',
+  S.displayLanguage: 'ភាសាបង្ហាញ',
+  S.chooseLanguage: 'ជ្រើសរើសភាសាបង្ហាញ',
+  S.sectionPlayback: 'ការកំណត់ការចាក់វីដេអូ',
+  S.defaultQuality: 'គុណភាពវីដេអូលំនាំដើម',
+  S.chooseQuality: 'ជ្រើសរើសគុណភាពលំនាំដើម',
+  S.qualityAuto: 'ស្វ័យប្រវត្តិ',
+  S.preferredSubtitle: 'ភាសាអក្សររត់',
+  S.chooseSubtitle: 'ជ្រើសរើសភាសាអក្សររត់',
+  S.subtitleEnglish: 'អង់គ្លេស',
+  S.subtitleIndonesian: 'ឥណ្ឌូនេស៊ី',
+  S.subtitleNone: 'គ្មាន',
+  S.sectionData: 'ទិន្នន័យ និងទំហំផ្ទុក',
+  S.clearHistory: 'លុបប្រវត្តិការមើល',
+  S.clearHistoryDesc: 'លុបវឌ្ឍនភាពការមើល និងប្រវត្តិទាំងអស់',
+  S.clearHistoryConfirmTitle: 'លុបប្រវត្តិ?',
+  S.clearHistoryConfirmBody: 'វឌ្ឍនភាពការមើលដែលបានរក្សាទុកទាំងអស់នឹងត្រូវលុប។',
+  S.historyCleared: 'បានលុបប្រវត្តិការមើល',
+  S.clearFavorites: 'លុបបញ្ជីចំណូលចិត្ត',
+  S.clearFavoritesDesc: 'លុប Donghua ទាំងអស់ចេញពីចំណូលចិត្ត',
+  S.clearFavoritesConfirmTitle: 'លុបបញ្ជីចំណូលចិត្ត?',
+  S.clearFavoritesConfirmBody:
+      'រឿងដែលបានរក្សាទុកទាំងអស់នឹងត្រូវដកចេញពីបណ្ណាល័យរបស់អ្នក។',
+  S.favoritesCleared: 'បានលុបបញ្ជីចំណូលចិត្ត',
+  S.clearCache: 'សម្អាត Cache',
+  S.clearCacheDesc: 'សម្អាតអង្គចងចាំ និងរូបភាពបណ្ដោះអាសន្ន',
+  S.cacheCleared: 'បានសម្អាត Cache រូបភាព និងអង្គចងចាំ',
+  S.sectionAbout: 'អំពីកម្មវិធី',
+  S.versionLine: 'កំណែ {version} (build {build})',
+  S.aboutPlayer: 'កម្មវិធីចាក់វីដេអូ',
+  S.aboutContentSource: 'ប្រភពមាតិកា',
+  S.credits: 'អ្នកបង្កើត',
+  S.privacy: 'ឯកជនភាព',
+  S.privacyBody:
+      'គ្មានការផ្សាយពាណិជ្ជកម្ម។ គ្មានការតាមដាន។ ប្រវត្តិ និងចំណូលចិត្ត'
+      'ត្រូវបានរក្សាទុកតែលើឧបករណ៍នេះប៉ុណ្ណោះ។',
+
+  S.playerResolving: 'កំពុងស្វែងរកប្រភពវីដេអូ...',
+  S.playerError: 'បញ្ហា៖ {error}',
+  S.playerNoStreams: 'មិនមានប្រភពវីដេអូដែលអាចចាក់បានទេ។',
+  S.goBack: 'ត្រឡប់ក្រោយ',
+  S.playerConnecting: 'កំពុងភ្ជាប់ទៅ {server} ({index}/{total})',
+  S.playerServerWord: 'Server',
+  S.playerNoServer:
+      'គ្មាន Server ណាអាចចាក់ភាគនេះបានទេ។ '
+      'សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិត រួចព្យាយាមម្ដងទៀត។',
+  S.retryStream: 'សាកចាក់ម្ដងទៀត',
+  S.back: 'ត្រឡប់ក្រោយ',
+  S.selectSource: 'ជ្រើសរើស Server / គុណភាព',
+  S.rewind10: 'ថយក្រោយ 10 វិនាទី',
+  S.forward10: 'ទៅមុខ 10 វិនាទី',
+  S.play: 'ចាក់',
+  S.pause: 'ផ្អាក',
+  S.playbackSpeed: 'ល្បឿនចាក់',
+  S.nextEpisode: 'ភាគបន្ទាប់',
+};
+
+final RegExp _placeholder = RegExp(r'\{(\w+)\}');
+
+const List<S> _weekdayKeys = [
+  S.weekdayMon,
+  S.weekdayTue,
+  S.weekdayWed,
+  S.weekdayThu,
+  S.weekdayFri,
+  S.weekdaySat,
+  S.weekdaySun,
+];
+
+/// The strings of one language. Widgets get it from `stringsProvider`.
+class AppStrings {
+  final AppLanguage language;
+
+  const AppStrings(this.language);
+
+  /// The whole table of [language]. Used by the tests.
+  static Map<S, String> tableOf(AppLanguage language) {
+    switch (language) {
+      case AppLanguage.en:
+        return _en;
+      case AppLanguage.km:
+        return _km;
+    }
+  }
+
+  /// The text for [key]. A key that is missing in [language] falls back to
+  /// English, so the UI never shows an empty label.
+  String call(S key) => tableOf(language)[key] ?? _en[key] ?? key.name;
+
+  /// The text for [key] with every `{name}` placeholder replaced by
+  /// `args[name]`. It is one pass over the template, so a value that itself
+  /// contains braces (a title from the source) is never expanded again.
+  String fmt(S key, Map<String, Object> args) {
+    return call(key).replaceAllMapped(_placeholder, (match) {
+      final value = args[match.group(1)];
+      return value == null ? match.group(0)! : '$value';
+    });
+  }
+
+  /// Short weekday name, 1 (Monday) to 7 (Sunday). Other values are clamped.
+  String weekdayShort(int day) => call(_weekdayKeys[day.clamp(1, 7) - 1]);
+}

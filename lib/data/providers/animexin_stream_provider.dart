@@ -1,12 +1,13 @@
-import 'dart:math';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
 import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
+import '../../domain/models/schedule_entry.dart';
 import '../../domain/models/stream_source.dart';
 import '../../domain/providers/stream_provider.dart';
 import '../../core/debug_log.dart';
+import 'animexin_listing_parser.dart';
 import 'stream_resolver.dart';
 import 'stream_source_filter.dart';
 
@@ -32,8 +33,6 @@ String cleanShowTitle(String title) {
 
 class AnimeXinStreamProvider implements DonghuaStreamProvider {
   final Dio _dio;
-  List<Show>? _trendingCache;
-  String? _trendingCacheDay;
 
   AnimeXinStreamProvider({Dio? dio})
     : _dio =
@@ -60,18 +59,10 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
   String get name => 'AnimeXin';
 
   @override
-  Future<List<Show>> search(String query, {int? weekday}) async {
+  Future<List<Show>> search(String query) async {
     final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) {
-      final day = (weekday ?? DateTime.now().weekday).clamp(1, 7);
-      final cached = _cachedWeekdayTrending(day);
-      if (cached != null) return cached;
-      final shows = await _scrapeWeekdayTrending(day);
-      _trendingCache = shows;
-      _trendingCacheDay =
-          '${DateTime.now().toUtc().toIso8601String().substring(0, 10)}:$day';
-      return shows;
-    }
+    // Without a query there is nothing to look for: show the popular list.
+    if (cleanQuery.isEmpty) return popular();
 
     try {
       final response = await _dio.get('/', queryParameters: {'s': cleanQuery});
@@ -130,6 +121,57 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
     }
 
     return _filterFallback(cleanQuery);
+  }
+
+  @override
+  Future<Map<int, List<ScheduleEntry>>> schedule() async {
+    final schedule = parseSchedule(
+      await _fetchPage('/schedule/'),
+      providerId: id,
+    );
+    final total = schedule.values.fold<int>(0, (sum, day) => sum + day.length);
+    DLog.event(
+      'schedule',
+      'total=$total days=${[for (var d = 1; d <= 7; d++) schedule[d]!.length].join(',')}',
+    );
+    // One empty day is normal. No show at all means the page has changed.
+    if (total == 0) {
+      throw const FormatException('The schedule page has no shows');
+    }
+    return schedule;
+  }
+
+  @override
+  Future<List<Show>> newSeries() => _seriesList('latest');
+
+  @override
+  Future<List<Show>> popular() => _seriesList('popular');
+
+  /// The first page of the series listing in the given order. These lists
+  /// never fall back to the built-in catalog: a failure is thrown, so the
+  /// screen can show it with a retry.
+  Future<List<Show>> _seriesList(String order) async {
+    final shows = parseSeriesList(
+      await _fetchPage('/anime/', queryParameters: {'order': order}),
+      providerId: id,
+    );
+    DLog.event('seriesList', 'order=$order count=${shows.length}');
+    if (shows.isEmpty) {
+      throw FormatException('The "$order" listing has no series');
+    }
+    return shows;
+  }
+
+  Future<String> _fetchPage(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _dio.get<String>(
+      path,
+      queryParameters: queryParameters,
+      options: Options(responseType: ResponseType.plain),
+    );
+    return response.data ?? '';
   }
 
   @override
@@ -309,68 +351,6 @@ class AnimeXinStreamProvider implements DonghuaStreamProvider {
           'servers=${filtered.map((s) => '${s.server}/${s.quality}').join(',')}',
     );
     return filtered;
-  }
-
-  List<Show>? _cachedWeekdayTrending(int weekday) {
-    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
-    final key = '$today:$weekday';
-    if (_trendingCacheDay == key && (_trendingCache?.length ?? 0) >= 7) {
-      return _trendingCache;
-    }
-    return null;
-  }
-
-  Future<List<Show>> _scrapeWeekdayTrending(int weekday) async {
-    weekday = weekday.clamp(1, 7);
-    try {
-      final response = await _dio.get('/');
-      final document = html_parser.parse(response.data);
-      final articles = document.querySelectorAll(
-        'article.bs, .listupd article',
-      );
-      final pool = <Show>[];
-      final seen = <String>{};
-      for (final article in articles) {
-        final linkEl = article.querySelector('a');
-        final titleEl = article.querySelector('.tt h2, .tt, h2, .entry-title');
-        final imgEl = article.querySelector('img');
-        final url = linkEl?.attributes['href'] ?? '';
-        final linkTitle = linkEl?.attributes['title']?.trim() ?? '';
-        final title = linkTitle.isNotEmpty
-            ? linkTitle
-            : (titleEl?.text.trim() ?? '');
-        final poster =
-            imgEl?.attributes['data-src'] ?? imgEl?.attributes['src'] ?? '';
-        if (url.isNotEmpty && title.isNotEmpty && seen.add(url)) {
-          pool.add(
-            Show(
-              id: url,
-              title: cleanShowTitle(title),
-              poster: poster,
-              episodeCount: article.querySelector('.epx, .bt .ep')?.text.trim(),
-              providerId: id,
-            ),
-          );
-        }
-        if (pool.length >= 21) break;
-      }
-      if (pool.length >= 7) {
-        DLog.event(
-          'trending.scrape',
-          'pool=${pool.length} posters=${pool.where((s) => s.poster.isNotEmpty).length} weekday=$weekday',
-        );
-        final now = DateTime.now();
-        final rng = Random(weekday * 37 + now.day + now.hour);
-        final shuffled = [...pool]..shuffle(rng);
-        final result = shuffled.take(7).toList();
-        DLog.event('trending.scrape', 'pool=${pool.length} weekday=$weekday');
-        return result;
-      }
-    } catch (e) {
-      DLog.error('trending.scrape', e);
-    }
-    DLog.event('trending.fallback', 'using built-in pool');
-    return _getFeaturedFallback();
   }
 
   List<Show> _getFeaturedFallback() {

@@ -12,6 +12,7 @@ import '../../domain/models/show.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/stream_source.dart';
 import '../../core/debug_log.dart';
+import '../../core/l10n/app_strings.dart';
 import '../library/library_controller.dart';
 import '../settings/settings_controller.dart';
 import 'player_controller.dart';
@@ -292,9 +293,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       setState(() {
         _isBuffering = false;
         _isPlaying = false;
-        _errorMessage =
-            'No server could play this episode. '
-            'Check your connection and retry.';
+        _errorMessage = ref.read(stringsProvider)(S.playerNoServer);
       });
       DLog.event('player.failover', 'exhausted tried=${_failedSources.length}');
       return;
@@ -687,19 +686,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   @override
   Widget build(BuildContext context) {
     final streamsAsync = ref.watch(episodeStreamsProvider(_currentEpisode.id));
+    final s = ref.watch(stringsProvider);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: streamsAsync.when(
-        loading: () => const Center(
+        loading: () => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Color(0xFFE50914)),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(color: Color(0xFFE50914)),
+              const SizedBox(height: 16),
               Text(
-                'Resolving stream sources...',
-                style: TextStyle(color: Colors.white70),
+                s(S.playerResolving),
+                style: const TextStyle(color: Colors.white70),
               ),
             ],
           ),
@@ -715,14 +715,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                'Error: $err',
+                s.fmt(S.playerError, {'error': err}),
                 style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.invalidate(episodeStreamsProvider(_currentEpisode.id)),
-                child: const Text('Retry'),
+                child: Text(s(S.retry)),
               ),
             ],
           ),
@@ -756,14 +756,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'No active streams available.',
-                    style: TextStyle(color: Colors.white70),
+                  Text(
+                    s(S.playerNoStreams),
+                    style: const TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Go Back'),
+                    child: Text(s(S.goBack)),
                   ),
                 ],
               ),
@@ -809,9 +809,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       if (_availableSources.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Text(
-                          'Connecting to '
-                          '${_availableSources[_currentSourceIndex].server ?? 'server'}'
-                          ' (${_currentSourceIndex + 1}/${_availableSources.length})',
+                          s.fmt(S.playerConnecting, {
+                            'server':
+                                _availableSources[_currentSourceIndex].server ??
+                                s(S.playerServerWord),
+                            'index': _currentSourceIndex + 1,
+                            'total': _availableSources.length,
+                          }),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white70,
@@ -864,7 +868,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             });
                             _initializeStream(_availableSources[index]);
                           },
-                          child: const Text('Retry Stream'),
+                          child: Text(s(S.retryStream)),
                         ),
                       ],
                     ),

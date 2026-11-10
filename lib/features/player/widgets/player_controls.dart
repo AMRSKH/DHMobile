@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../domain/models/stream_source.dart';
+import '../../settings/settings_controller.dart';
 import '../source_selection.dart';
 
-class PlayerControls extends StatelessWidget {
+class PlayerControls extends ConsumerWidget {
   final String title;
   final String episodeTitle;
   final bool isPlaying;
@@ -62,7 +65,8 @@ class PlayerControls extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
     return Stack(
       children: [
         // Scrim only dims the video. It must not swallow taps, otherwise the
@@ -90,7 +94,7 @@ class PlayerControls extends StatelessWidget {
                         color: Colors.white,
                         size: 28,
                       ),
-                      tooltip: 'Back',
+                      tooltip: s(S.back),
                       onPressed: onBack,
                     ),
                     const SizedBox(width: 8),
@@ -123,7 +127,7 @@ class PlayerControls extends StatelessWidget {
                     ),
                     if (sources.isNotEmpty)
                       PopupMenuButton<int>(
-                        tooltip: 'Select Server / Quality',
+                        tooltip: s(S.selectSource),
                         icon: const Icon(
                           Icons.high_quality,
                           color: Colors.white,
@@ -178,7 +182,7 @@ class PlayerControls extends StatelessWidget {
                   IconButton(
                     iconSize: 42,
                     icon: const Icon(Icons.replay_10, color: Colors.white),
-                    tooltip: 'Rewind 10 seconds',
+                    tooltip: s(S.rewind10),
                     onPressed: onSeekBack10,
                   ),
                   const SizedBox(width: 32),
@@ -196,7 +200,7 @@ class PlayerControls extends StatelessWidget {
                               : Icons.play_circle_filled,
                           color: Colors.white,
                         ),
-                        tooltip: isPlaying ? 'Pause' : 'Play',
+                        tooltip: isPlaying ? s(S.pause) : s(S.play),
                         onPressed: onPlayPause,
                       ),
                       if (isBuffering)
@@ -216,7 +220,7 @@ class PlayerControls extends StatelessWidget {
                   IconButton(
                     iconSize: 42,
                     icon: const Icon(Icons.forward_10, color: Colors.white),
-                    tooltip: 'Forward 10 seconds',
+                    tooltip: s(S.forward10),
                     onPressed: onSeekForward10,
                   ),
                 ],
@@ -274,7 +278,7 @@ class PlayerControls extends StatelessWidget {
                           ),
                         ),
                         PopupMenuButton<double>(
-                          tooltip: 'Playback Speed',
+                          tooltip: s(S.playbackSpeed),
                           onOpened: onMenuOpened,
                           onCanceled: onMenuClosed,
                           onSelected: (value) {
@@ -325,7 +329,7 @@ class PlayerControls extends StatelessWidget {
                               Icons.skip_next,
                               color: Colors.white,
                             ),
-                            tooltip: 'Next Episode',
+                            tooltip: s(S.nextEpisode),
                             onPressed: onNextEpisode,
                           ),
                       ],

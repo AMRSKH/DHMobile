@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-014
-Status: In Review
+Status: Completed
 
 # TASK-014: Live Test on Phone, Find Issues, and Fix
 
@@ -52,7 +52,7 @@ A connected, unlocked device and the live AnimeXin site.
 
 - [x] Each in-scope flow was run on the device and its result recorded. Search is not reachable from the UI (F2).
 - [x] Each issue has a severity and a file reference.
-- [ ] Fixed issues were retested on the device. Done for F1, F3 to F10, F12 to F14, and R2 to R4. Open: R1 exhaustion and the L1, L2, L4 edits, see Notes.
+- [ ] Fixed issues were retested on the device. Done for F1, F3 to F10, F12 to F14, R2 to R4, and on 2026-11-10 for L1 and L2. Open: R1 exhaustion and the L4 re-arm branch, which did not occur on the device, see Notes.
 - [x] `flutter analyze --no-pub` passes.
 - [x] `flutter test --no-pub` passes.
 
@@ -280,7 +280,18 @@ Debug builds installed over the existing app (`adb install -r`, data kept), 2026
 | Background while playing, after the F14 fix | Pass: paused on leaving, play icon and controls on return, play tap resumed |
 | Leave the player with the back arrow | Pass: portrait restored |
 | R1 exhaustion error and "Retry Stream" | Not observed on the device: no natural case where every source fails. Covered by the QA probe test only |
-| L1, L2, L4 edits (last build) | Not retested on the device: the phone was disconnected when the last build was ready. Covered by format, analyze, tests, and the QA re-check only |
+| L1, L2, L4 edits (last build) | Not retested on the device: the phone was disconnected when the last build was ready. Covered by format, analyze, tests, and the QA re-check only. Retested on 2026-11-10, see below |
+
+### Device retest after the commit (2026-11-10)
+
+Build of commit `d16c814`, installed with `adb install -r`. Run by the main agent at the start of TASK-015.
+
+| Case | Result |
+| --- | --- |
+| L2: Home pressed 0.8 s after `player.init`, 38 s away | Pass. `player.ready` arrived while the app was in the background, no failover. On return the video was paused at 00:00 with the controls shown and the play icon |
+| L4: watchdog after a return | Partly covered. The same run was away longer than the 20 s watchdog and no failover followed in the 11 s after the return. The load had finished in the background, so the re-arm branch itself (a load still pending on return) did not run |
+| L1: 1.5x, then two +10 s seeks and 1.0x picked 0.5 s later | Pass for the result: label 1.0x, 30.2 s of video in 30.9 s. Whether the pick landed inside the buffering phase is not confirmed, there is no log line for a speed change |
+| Regression: play, speed menu, seeks, back to Explore | Pass, no error in the log |
 
 ## Documentation Updates
 
@@ -303,7 +314,7 @@ The task's changes sat in files that also held the owner's older uncommitted app
 The task commit holds the four files this task changed, `source_selection.dart`, the four new tests, this record, and the TASK-013 record edit (hash and status).
 
 - Commit Message: fix(player): fix source choice, failover, resume and titles from live test [TASK-014]
-- Commit Hash:
+- Commit Hash: d16c814
 
 ## Final Report
 
@@ -331,7 +342,7 @@ Deferred:
 Not verified on the device:
 
 - The exhaustion error and "Retry Stream" (R1): no natural case where every source fails.
-- The L1, L2, and L4 edits: the phone was disconnected when the last build was ready.
+- The L4 watchdog re-arm with a load still pending on return: it did not occur in the retest of 2026-11-10. L1 and L2 passed there.
 - The subtitle settings "Indonesian" and "None".
 
 Known behaviour:

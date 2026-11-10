@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../domain/models/show.dart';
 import '../../domain/models/history_item.dart';
 import '../detail/detail_screen.dart';
 import '../player/player_screen.dart';
+import '../settings/settings_controller.dart';
 import '../../core/debug_log.dart';
 import 'library_controller.dart';
 
@@ -19,10 +22,21 @@ final RegExp _episodeOnlyTitle = RegExp(
 /// Label for a history card. The episode title is left out when it is empty
 /// or only repeats "Episode N", also in another spelling of the same number
 /// ("Episode 02", "Ep 2").
-String historyEpisodeLabel(String episodeNumber, String title) {
-  final base = 'Episode $episodeNumber';
+///
+/// [episodeWord] is the word for "Episode" in the display language. Titles
+/// come from the source in English, so the check for a title that only
+/// repeats the number always looks for the English forms.
+String historyEpisodeLabel(
+  String episodeNumber,
+  String title, {
+  String episodeWord = 'Episode',
+}) {
+  final base = '$episodeWord $episodeNumber';
   final trimmed = title.trim();
-  if (trimmed.isEmpty || trimmed.toLowerCase() == base.toLowerCase()) {
+  final lower = trimmed.toLowerCase();
+  if (trimmed.isEmpty ||
+      lower == base.toLowerCase() ||
+      lower == 'episode $episodeNumber'.toLowerCase()) {
     return base;
   }
   final match = _episodeOnlyTitle.firstMatch(trimmed);
@@ -59,17 +73,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Library'),
+        title: Text(s(S.libraryTitle)),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.primaryRed,
           labelColor: Colors.white,
           unselectedLabelColor: AppTheme.textMuted,
-          tabs: const [
-            Tab(icon: Icon(Icons.history_rounded), text: 'History'),
-            Tab(icon: Icon(Icons.favorite_rounded), text: 'Favorites'),
+          tabs: [
+            Tab(icon: const Icon(Icons.history_rounded), text: s(S.history)),
+            Tab(icon: const Icon(Icons.favorite_rounded), text: s(S.favorites)),
           ],
         ),
       ),
@@ -87,6 +102,7 @@ class _HistoryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(historyProvider);
+    final s = ref.watch(stringsProvider);
 
     if (history.isEmpty) {
       return Center(
@@ -99,18 +115,23 @@ class _HistoryTab extends ConsumerWidget {
               color: AppTheme.textMuted.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No watch history yet',
-              style: TextStyle(
+            Text(
+              s(S.historyEmptyTitle),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Episodes you start watching will appear here.',
-              style: TextStyle(color: AppTheme.textMuted),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                s(S.historyEmptyBody),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppTheme.textMuted),
+              ),
             ),
           ],
         ),
@@ -125,7 +146,7 @@ class _HistoryTab extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${history.length} items',
+                s.fmt(S.historyCount, {'count': history.length}),
                 style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
               TextButton.icon(
@@ -134,21 +155,19 @@ class _HistoryTab extends ConsumerWidget {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       backgroundColor: AppTheme.surfaceDark,
-                      title: const Text('Clear Watch History?'),
-                      content: const Text(
-                        'All your progress and resume points will be removed.',
-                      ),
+                      title: Text(s(S.clearHistoryQuestion)),
+                      content: Text(s(S.clearHistoryWarning)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancel'),
+                          child: Text(s(S.cancel)),
                         ),
                         FilledButton(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppTheme.primaryRed,
                           ),
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Clear All'),
+                          child: Text(s(S.clearAll)),
                         ),
                       ],
                     ),
@@ -162,9 +181,12 @@ class _HistoryTab extends ConsumerWidget {
                   size: 16,
                   color: AppTheme.textMuted,
                 ),
-                label: const Text(
-                  'Clear All',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                label: Text(
+                  s(S.clearAll),
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -200,6 +222,7 @@ class _HistoryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
     final epNumStr = item.episode.number % 1 == 0
         ? item.episode.number.toInt().toString()
         : item.episode.number.toString();
@@ -238,6 +261,7 @@ class _HistoryCard extends ConsumerWidget {
                           'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                     },
                     fit: BoxFit.cover,
+                    placeholder: (_, _) => const SkeletonBox(),
                     errorWidget: (_, _, _) => Container(
                       color: AppTheme.surfaceDark,
                       child: const Icon(Icons.movie, color: AppTheme.textMuted),
@@ -264,7 +288,11 @@ class _HistoryCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          historyEpisodeLabel(epNumStr, item.episode.title),
+                          historyEpisodeLabel(
+                            epNumStr,
+                            item.episode.title,
+                            episodeWord: s(S.episode),
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -355,6 +383,7 @@ class _FavoritesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoritesProvider);
+    final s = ref.watch(stringsProvider);
 
     if (favorites.isEmpty) {
       return Center(
@@ -367,18 +396,23 @@ class _FavoritesTab extends ConsumerWidget {
               color: AppTheme.textMuted.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No favorite donghua yet',
-              style: TextStyle(
+            Text(
+              s(S.favoritesEmptyTitle),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Tap the heart icon on any donghua to save it here.',
-              style: TextStyle(color: AppTheme.textMuted),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                s(S.favoritesEmptyBody),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppTheme.textMuted),
+              ),
             ),
           ],
         ),
@@ -438,8 +472,7 @@ class _FavoriteCard extends ConsumerWidget {
                           'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                     },
                     fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        Container(color: AppTheme.surfaceDark),
+                    placeholder: (_, _) => const SkeletonBox(),
                     errorWidget: (_, _, _) => Container(
                       color: AppTheme.surfaceDark,
                       child: const Icon(Icons.movie, color: AppTheme.textMuted),
