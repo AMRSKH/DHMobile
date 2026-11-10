@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-015
-Status: Blocked
+Status: Completed
 
 # TASK-015: Netflix-style splash, source schedule, skeletons, About, display language
 
@@ -403,7 +403,7 @@ Run by the main agent on the final tree:
 ## Git Commit
 
 - Commit Message: feat(app): add Netflix-style splash, source schedule, skeletons and Khmer language [TASK-015]
-- Commit Hash:
+- Commit Hash: 9151a10
 
 ## Final Report
 
@@ -432,4 +432,4 @@ Known limits:
 - QA L2 (player error text keeps the old language) and L3 (raw player error) are not changed.
 - The Khmer wording needs the owner's review, for example "ព្រហ" for Thursday and "{count} ភាគ" for history items.
 
-- Paused by the owner on 2026-11-10, before QA, Docs, final validation, and the commit. The uncommitted work stays in the working tree. Status set to `Blocked` because no status is named "Paused". TASK-016 (`apk/` organization) runs first.
+- Paused by the owner on 2026-11-10, before QA, Docs, final validation, and the commit. The uncommitted work stays in the working tree. Status set to `Blocked` by the TASK-016 session because no status is named "Paused". The owner then resumed TASK-015 and asked for the commit ("Commit ឥឡូវ"), so QA, Docs, final validation, and the commit were done and the status is `Completed`.

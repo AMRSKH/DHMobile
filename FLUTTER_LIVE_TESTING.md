@@ -101,6 +101,8 @@ D:\DevTools\flutter\bin\flutter.bat build apk --release --split-per-abi
 
 Output: `build\app\outputs\flutter-apk\`.
 
+APKs kept for testing are copied from there into `apk\<abi>\` (one folder per ABI) and renamed `DHMobile-<version>[-<variant>]-<abi>.apk`. See `apk/README.md` for the layout and the name of each file.
+
 ## 8. Resource notes
 
 - No emulator and no Android Studio are needed; both are slow on this machine.

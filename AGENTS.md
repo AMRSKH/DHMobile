@@ -41,6 +41,8 @@ test/                       Widget, provider, and parser tests
   fixtures/                 Saved AnimeXin HTML for the parser tests
   support/                  Fakes shared by tests (fake stream provider)
 android/                    Android host project
+apk/                        Archived release APKs by ABI, not tracked by Git
+                            (layout: apk/README.md)
 team/                       Roles, task records, command playbooks
 .githooks/                  Versioned Git hooks
 ```
@@ -63,14 +65,14 @@ git config core.hooksPath .githooks   # once per clone: enables the pre-commit h
 | Check formatting only | `dart format --output=none --set-exit-if-changed <paths>` |
 | Lint | `flutter analyze --no-pub` |
 | Test | `flutter test --no-pub` |
-| Release build | `flutter build apk --release` |
-| Smaller per-ABI build | `flutter build apk --release --split-per-abi` |
+| Release build | `flutter build apk --release`, output in `build/app/outputs/flutter-apk/` |
+| Smaller per-ABI build | `flutter build apk --release --split-per-abi`, one file per ABI in `build/app/outputs/flutter-apk/` |
 
 Use `--no-pub` so a check never fetches packages by itself. On a fresh clone, run `flutter pub get` once, with approval.
 
 Device setup and live testing, when the file is present locally: `FLUTTER_LIVE_TESTING.md`.
 
-Release APKs in the repo root are ignored by Git. Do not rebuild, replace, or delete them unless asked.
+Release APKs kept for testing are archived in `apk/<abi>/`, ignored by Git; `apk/README.md` explains the layout and names. Do not rebuild, replace, or delete them unless asked.
 
 ## Coding standards
 
