@@ -81,7 +81,7 @@ void main() {
 
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('DHMobile'), findsOneWidget);
-    expect(find.text('Version 1.0.4 (build 5)'), findsOneWidget);
+    expect(find.text('Version 1.0.5 (build 6)'), findsOneWidget);
     expect(find.text('Player'), findsOneWidget);
     expect(find.text('VLC (libVLC) → ExoPlayer'), findsOneWidget);
     expect(find.text('Content source'), findsOneWidget);

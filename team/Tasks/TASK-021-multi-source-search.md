@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-021
-Status: In Review
+Status: Completed
 
 # TASK-021: Search every DonghuaCLI source, not only AnimeXin
 
@@ -142,7 +142,7 @@ second QA round.
 ## Git Commit
 
 - Commit Message: `feat(sources): search every DonghuaCLI source [TASK-021]`
-- Commit Hash:
+- Commit Hash: d068b9d
 
 ## Final Report
 
