@@ -81,7 +81,7 @@ void main() {
 
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('DHMobile'), findsOneWidget);
-    expect(find.text('Version 1.0.7 (build 8)'), findsOneWidget);
+    expect(find.text('Version 1.0.8 (build 9)'), findsOneWidget);
     expect(find.text('Player'), findsOneWidget);
     // ExoPlayer is the default: tile and About both read it.
     expect(find.text('ExoPlayer'), findsNWidgets(2));

@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-028
-Status: In Review
+Status: Completed
 
 # TASK-028: Check TLS certificates, raise minSdk to 26
 
@@ -58,7 +58,7 @@ No dependency needs a minSdk above 26 (`flutter_vlc_player` 21,
 ## Git Commit
 
 - Commit Message: `fix(security): check TLS certificates and require Android 8 [TASK-028]`
-- Commit Hash:
+- Commit Hash: 38a0771
 
 ## Notes and Limitations
 

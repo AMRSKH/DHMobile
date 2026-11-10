@@ -10,8 +10,8 @@ class AppInfo {
   static const String name = 'DHMobile';
 
   /// The part of `version:` in `pubspec.yaml` before the `+`.
-  static const String version = '1.0.7';
+  static const String version = '1.0.8';
 
   /// The part of `version:` in `pubspec.yaml` after the `+`.
-  static const String buildNumber = '8';
+  static const String buildNumber = '9';
 }
