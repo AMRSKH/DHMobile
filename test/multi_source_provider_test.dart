@@ -6,6 +6,7 @@ import 'package:donghua_player/data/providers/anime_stream_site_provider.dart';
 import 'package:donghua_player/data/providers/multi_source_provider.dart';
 import 'package:donghua_player/domain/models/content_source.dart';
 import 'package:donghua_player/domain/models/episode.dart';
+import 'package:donghua_player/domain/models/schedule_entry.dart';
 import 'package:donghua_player/domain/models/show.dart';
 import 'package:donghua_player/domain/models/stream_source.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,11 +39,28 @@ class _FakeAdapter implements HttpClientAdapter {
 /// A site whose search answer is given by the test.
 class _FakeSite extends AnimeStreamSiteProvider {
   final Future<List<Show>> Function(String query) onSearch;
+  final Future<Map<int, List<ScheduleEntry>>> Function()? onSchedule;
+  final Future<List<Show>> Function()? onPopular;
   final List<String> episodeCalls = [];
   final List<String> streamCalls = [];
 
-  _FakeSite(String id, {required this.onSearch})
-    : super(id: id, name: id.toUpperCase(), baseUrl: 'https://$id.test');
+  _FakeSite(
+    String id, {
+    required this.onSearch,
+    this.onSchedule,
+    this.onPopular,
+  }) : super(id: id, name: id.toUpperCase(), baseUrl: 'https://$id.test');
+
+  @override
+  Future<Map<int, List<ScheduleEntry>>> schedule() =>
+      onSchedule?.call() ?? Future.error(const FormatException('no page'));
+
+  @override
+  Future<List<Show>> popular() =>
+      onPopular?.call() ?? Future.error(const FormatException('no page'));
+
+  @override
+  Future<List<Show>> newSeries() => popular();
 
   @override
   Future<List<Show>> search(String query) => onSearch(query);
@@ -376,6 +394,139 @@ void main() {
 
     test('leaves an empty link empty', () {
       expect(absoluteUrl('  ', base), '');
+    });
+  });
+
+  group('Explore from every source', () {
+    ScheduleEntry entry(String site, String slug, {int? hour}) => ScheduleEntry(
+      show: _show(site, slug, slug),
+      releaseAt: hour == null ? null : DateTime.utc(2026, 11, 10, hour),
+    );
+
+    Map<int, List<ScheduleEntry>> week(Map<int, List<ScheduleEntry>> days) => {
+      for (var d = 1; d <= 7; d++) d: days[d] ?? <ScheduleEntry>[],
+    };
+
+    test('mergeSchedules keeps every show, sorted by release time', () {
+      final merged = mergeSchedules([
+        week({
+          2: [entry('ax', 'b', hour: 12), entry('ax', 'no-time')],
+        }),
+        week({
+          2: [entry('dw', 'a', hour: 9), entry('dw', 'c', hour: 12)],
+          5: [entry('dw', 'friday')],
+        }),
+      ]);
+
+      expect(merged.keys, [1, 2, 3, 4, 5, 6, 7]);
+      expect(merged[2]!.map((e) => e.show.title), ['a', 'b', 'c', 'no-time']);
+      expect(merged[5]!.map((e) => e.show.title), ['friday']);
+      expect(merged[1], isEmpty);
+    });
+
+    test('mergeSchedules lists the same URL once', () {
+      final same = entry('ax', 'x', hour: 10);
+      final merged = mergeSchedules([
+        week({
+          3: [same],
+        }),
+        week({
+          3: [same],
+        }),
+      ]);
+      expect(merged[3], hasLength(1));
+    });
+
+    test('schedule skips a source without a schedule page', () async {
+      final provider = MultiSourceStreamProvider(
+        sources: [
+          _FakeSite(
+            'ax',
+            onSearch: (_) async => const [],
+            onSchedule: () async => week({
+              1: [entry('ax', 'one', hour: 8)],
+            }),
+          ),
+          // No onSchedule: its schedule() fails, like DonghuaStream's page.
+          _FakeSite('ds', onSearch: (_) async => const []),
+          _FakeSite(
+            'lm',
+            onSearch: (_) async => const [],
+            onSchedule: () async => week({
+              1: [entry('lm', 'two', hour: 7)],
+            }),
+          ),
+        ],
+      );
+
+      final merged = await provider.schedule();
+
+      expect(merged[1]!.map((e) => e.show.providerId), ['lm', 'ax']);
+    });
+
+    test('a list fails only when every source fails', () async {
+      final provider = MultiSourceStreamProvider(
+        sources: [
+          _FakeSite('ax', onSearch: (_) async => const []),
+          _FakeSite('dw', onSearch: (_) async => const []),
+        ],
+      );
+
+      await expectLater(provider.schedule(), throwsFormatException);
+      await expectLater(provider.popular(), throwsFormatException);
+    });
+
+    test('popular and new series merge every source', () async {
+      final provider = MultiSourceStreamProvider(
+        sources: [
+          _FakeSite(
+            'ax',
+            onSearch: (_) async => const [],
+            onPopular: () async => [
+              _show('ax', '1', 'Alpha'),
+              _show('ax', '2', 'Beta'),
+            ],
+          ),
+          _FakeSite(
+            'dw',
+            onSearch: (_) async => const [],
+            onPopular: () async => [_show('dw', '1', 'Gamma')],
+          ),
+          _FakeSite('ds', onSearch: (_) async => const []),
+        ],
+      );
+
+      expect((await provider.popular()).map((s) => s.title), [
+        'Alpha',
+        'Gamma',
+        'Beta',
+      ]);
+      expect((await provider.newSeries()).map((s) => s.title), [
+        'Alpha',
+        'Gamma',
+        'Beta',
+      ]);
+    });
+
+    test('a slow source is left out of the lists', () async {
+      final never = Completer<List<Show>>();
+      final provider = MultiSourceStreamProvider(
+        listingTimeout: const Duration(milliseconds: 50),
+        sources: [
+          _FakeSite(
+            'ax',
+            onSearch: (_) async => const [],
+            onPopular: () => never.future,
+          ),
+          _FakeSite(
+            'dw',
+            onSearch: (_) async => const [],
+            onPopular: () async => [_show('dw', '1', 'Gamma')],
+          ),
+        ],
+      );
+
+      expect((await provider.popular()).map((s) => s.title), ['Gamma']);
     });
   });
 }

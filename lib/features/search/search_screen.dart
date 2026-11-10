@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/debug_log.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/widgets/skeleton.dart';
-import '../../domain/models/content_source.dart';
+import '../../core/widgets/source_badge.dart';
 import '../../domain/models/show.dart';
 import '../detail/detail_screen.dart';
 import '../settings/settings_controller.dart';
@@ -223,12 +222,11 @@ class _ShowCard extends StatelessWidget {
                           ),
                         ),
                 ),
-                if (sourceNameOf(show.providerId) case final source?)
-                  Positioned(
-                    left: 8,
-                    bottom: 8,
-                    child: _SourceBadge(name: source),
-                  ),
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: SourceBadge(providerId: show.providerId),
+                ),
                 if (show.episodeCount != null && show.episodeCount!.isNotEmpty)
                   Positioned(
                     top: 8,
@@ -267,33 +265,6 @@ class _ShowCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// The site a search result comes from, so the same series from two sources
-/// can be told apart.
-class _SourceBadge extends StatelessWidget {
-  final String name;
-
-  const _SourceBadge({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryRed.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        name,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

@@ -23,9 +23,10 @@ List<AnimeStreamSiteProvider> defaultSources() => [
           ),
 ];
 
-/// Searches every source at once and sends a show's episodes and streams to
-/// the site the show came from. Explore (schedule, new, popular) comes from
-/// the main source only: the other sites do not share its listing pages.
+/// Asks every source at once for search and the Explore lists (schedule,
+/// new, popular), and sends a show's episodes and streams to the site the
+/// show came from. A source that fails or is too slow is left out; only when
+/// every source fails is the list an error (TASK-021, TASK-032).
 class MultiSourceStreamProvider implements DonghuaStreamProvider {
   /// In priority order. The first is the main source.
   final List<AnimeStreamSiteProvider> sources;
@@ -33,9 +34,13 @@ class MultiSourceStreamProvider implements DonghuaStreamProvider {
   /// A source that has not answered by then is left out of the results.
   final Duration searchTimeout;
 
+  /// The same for one Explore list of one source.
+  final Duration listingTimeout;
+
   MultiSourceStreamProvider({
     List<AnimeStreamSiteProvider>? sources,
     this.searchTimeout = const Duration(seconds: 12),
+    this.listingTimeout = const Duration(seconds: 15),
   }) : sources = sources ?? defaultSources() {
     if (this.sources.isEmpty) {
       throw ArgumentError.value(sources, 'sources', 'must not be empty');
@@ -83,14 +88,54 @@ class MultiSourceStreamProvider implements DonghuaStreamProvider {
     }
   }
 
+  /// Every source's week, merged per day (see [mergeSchedules]).
+  /// DonghuaStream's page lists no days in its HTML, so it is skipped like a
+  /// failing source.
   @override
-  Future<Map<int, List<ScheduleEntry>>> schedule() => primary.schedule();
+  Future<Map<int, List<ScheduleEntry>>> schedule() async {
+    final weeks = await _fromEverySource('schedule', (s) => s.schedule());
+    return mergeSchedules(weeks);
+  }
 
   @override
-  Future<List<Show>> newSeries() => primary.newSeries();
+  Future<List<Show>> newSeries() async => mergeSearchResults(
+    await _fromEverySource('newSeries', (s) => s.newSeries()),
+  );
 
   @override
-  Future<List<Show>> popular() => primary.popular();
+  Future<List<Show>> popular() async =>
+      mergeSearchResults(await _fromEverySource('popular', (s) => s.popular()));
+
+  /// [read] of every source at once, in source order, without the sources
+  /// that failed or timed out. Throws the first error when all of them did.
+  Future<List<T>> _fromEverySource<T>(
+    String what,
+    Future<T> Function(AnimeStreamSiteProvider source) read,
+  ) async {
+    Object? firstError;
+    StackTrace? firstStack;
+    final results = await Future.wait(
+      sources.map((source) async {
+        try {
+          return await read(source).timeout(listingTimeout);
+        } catch (e, st) {
+          DLog.event('explore.multi', '$what ${source.id} skipped: $e');
+          firstError ??= e;
+          firstStack ??= st;
+          return null;
+        }
+      }),
+    );
+    final ok = [for (final r in results) ?r];
+    DLog.event('explore.multi', '$what sources=${ok.length}/${sources.length}');
+    if (ok.isEmpty) {
+      Error.throwWithStackTrace(
+        firstError ?? StateError('No source could read $what'),
+        firstStack ?? StackTrace.current,
+      );
+    }
+    return ok;
+  }
 
   @override
   Future<List<Episode>> episodes(String showId) =>
@@ -153,4 +198,33 @@ String normalizeShowTitle(String title) {
       .replaceAll(_nonWord, ' ')
       .trim();
   return key.isEmpty ? title.trim() : key;
+}
+
+/// Joins the weekly schedules of several sources (in priority order): for
+/// each day every entry, the same show URL once, sorted by release time.
+/// Entries without a time keep their source order after the timed ones.
+Map<int, List<ScheduleEntry>> mergeSchedules(
+  List<Map<int, List<ScheduleEntry>>> weeks,
+) {
+  final merged = <int, List<ScheduleEntry>>{};
+  for (var day = DateTime.monday; day <= DateTime.sunday; day++) {
+    final seenUrls = <String>{};
+    final entries = [
+      for (final week in weeks)
+        for (final entry in week[day] ?? const <ScheduleEntry>[])
+          if (seenUrls.add(entry.show.id)) entry,
+    ];
+    // List.sort is not stable: sort by (time, position) to keep source order.
+    final indexed = [for (var i = 0; i < entries.length; i++) (i, entries[i])];
+    indexed.sort((a, b) {
+      final ta = a.$2.releaseAt;
+      final tb = b.$2.releaseAt;
+      if (ta != null && tb != null && ta != tb) return ta.compareTo(tb);
+      if (ta == null && tb != null) return 1;
+      if (ta != null && tb == null) return -1;
+      return a.$1.compareTo(b.$1);
+    });
+    merged[day] = [for (final (_, entry) in indexed) entry];
+  }
+  return merged;
 }

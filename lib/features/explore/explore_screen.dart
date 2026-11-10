@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/debug_log.dart';
 import '../../core/widgets/skeleton.dart';
+import '../../core/widgets/source_badge.dart';
 import '../../core/widgets/underline_tab_bar.dart';
 import '../../domain/models/schedule_entry.dart';
 import '../../domain/models/show.dart';
@@ -344,6 +345,11 @@ class _ExploreCard extends StatelessWidget {
                         size: 40,
                       ),
                     ),
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: SourceBadge(providerId: show.providerId),
+                  ),
                 ],
               ),
             ),
