@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-024
-Status: In Review
+Status: Completed
 
 # TASK-024: Build and archive APK v1.0.6
 
@@ -73,7 +73,7 @@ from the episode start. Two problems seen during testing, see Notes.
 ## Git Commit
 
 - Commit Message: `chore(release): build APK v1.0.6 per ABI [TASK-024]`
-- Commit Hash:
+- Commit Hash: f747557
 
 ## Final Report
 

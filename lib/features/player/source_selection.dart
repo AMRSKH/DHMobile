@@ -113,6 +113,24 @@ int carriedResumeMs({required int positionMs, required int pendingMs}) {
   return positionMs > 3000 && positionMs > pendingMs ? positionMs : pendingMs;
 }
 
+/// How often the player resolves an episode's sources again by itself when
+/// every source has failed, before it shows the error. Stream URLs expire,
+/// and OK.ru binds them to the public IP (`srcIp`), which changes on some
+/// networks (carrier-grade NAT), so a fresh list can work where the old one
+/// failed (device test, TASK-024/025).
+const int kAutoReresolveLimit = 1;
+
+/// True when the player may resolve the sources again by itself, after
+/// [used] automatic resolutions since the last load that played.
+bool canAutoReresolve(int used) => used < kAutoReresolveLimit;
+
+/// True when a load has played for real since it started at [from]: a load
+/// can report "playing" and die at once, which must not earn a new automatic
+/// re-resolve (QA TASK-025).
+bool hasRealProgress({required Duration from, required Duration now}) {
+  return now - from >= const Duration(seconds: 10);
+}
+
 /// True when an "ended" report at [position] is the real end of the episode:
 /// the length is known and at most 5 s are left. libVLC also reports the end
 /// when a stream dies in the middle.

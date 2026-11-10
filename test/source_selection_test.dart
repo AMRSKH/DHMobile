@@ -337,4 +337,36 @@ void main() {
       expect(isNearEnd(position: minute, duration: Duration.zero), isFalse);
     });
   });
+
+  group('canAutoReresolve', () {
+    test('allows one fresh resolution, then the error shows', () {
+      expect(kAutoReresolveLimit, 1);
+      expect(canAutoReresolve(0), isTrue);
+      expect(canAutoReresolve(1), isFalse);
+      expect(canAutoReresolve(2), isFalse);
+    });
+  });
+
+  group('hasRealProgress', () {
+    const start = Duration(minutes: 4);
+
+    test('10 s past the start counts as real playback', () {
+      expect(
+        hasRealProgress(from: start, now: start + const Duration(seconds: 10)),
+        isTrue,
+      );
+    });
+
+    test('a load that reports playing and dies at once does not', () {
+      expect(hasRealProgress(from: start, now: start), isFalse);
+      expect(
+        hasRealProgress(from: start, now: start + const Duration(seconds: 9)),
+        isFalse,
+      );
+    });
+
+    test('a position before the start does not count', () {
+      expect(hasRealProgress(from: start, now: Duration.zero), isFalse);
+    });
+  });
 }

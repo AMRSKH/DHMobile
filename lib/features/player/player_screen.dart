@@ -58,6 +58,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // its buffering events as "not buffering", so for VLC this, and not
   // `_isBuffering`, tells a load that never started (QA TASK-020 M1).
   bool _loadHasPlayed = false;
+  // Automatic fresh resolutions of the sources since a load last played
+  // for real (see `hasRealProgress`).
+  int _autoReresolves = 0;
+  // Where the current load first reported playing.
+  Duration? _playedFrom;
+  // A fresh resolution of the sources is running. An empty answer then keeps
+  // the old list and shows Retry Stream (QA TASK-025).
+  bool _reresolving = false;
   bool _isPlaying = false;
   bool _isBuffering = true;
   Duration _position = Duration.zero;
@@ -298,12 +306,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     if (next < 0) {
       _disposePlayers();
+      DLog.event('player.failover', 'exhausted tried=${_failedSources.length}');
+      if (canAutoReresolve(_autoReresolves)) {
+        _autoReresolves++;
+        _reresolveSources(automatic: true);
+        return;
+      }
       setState(() {
         _isBuffering = false;
         _isPlaying = false;
         _errorMessage = ref.read(stringsProvider)(S.playerNoServer);
       });
-      DLog.event('player.failover', 'exhausted tried=${_failedSources.length}');
       return;
     }
 
@@ -315,6 +328,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _currentSourceIndex = next;
     });
     _initializeStream(_availableSources[next]);
+  }
+
+  /// Asks for the episode's sources again instead of trying the same URLs:
+  /// they may have expired or be bound to an old public IP. The new list
+  /// starts in `build()`, from the server the user picked or the settings,
+  /// at the carried position.
+  void _reresolveSources({required bool automatic}) {
+    DLog.event(
+      'player.reresolve',
+      'ep=${_currentEpisode.number.toInt()} '
+          '${automatic ? 'auto=$_autoReresolves' : 'manual'}',
+    );
+    _reresolving = true;
+    setState(() {
+      _errorMessage = null;
+      _isBuffering = true;
+      _isPlaying = false;
+    });
+    ref.invalidate(episodeStreamsProvider(_currentEpisode.id));
   }
 
   /// The current load failed on [_engine]. Loads the same source on the
@@ -333,6 +365,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
     _carryPositionToNextLoad();
     _initializeStream(source, engine: fallback);
+  }
+
+  /// A load that played for real earns a new automatic re-resolve.
+  void _notePlaying(Duration position) {
+    final from = _playedFrom ??= position;
+    if (_autoReresolves > 0 && hasRealProgress(from: from, now: position)) {
+      _autoReresolves = 0;
+    }
   }
 
   /// VLC throws when it is paused before it is initialized.
@@ -386,6 +426,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     setState(() {
       _engine = engine ?? ref.read(settingsProvider).playerEngine;
       _loadHasPlayed = false;
+      _playedFrom = null;
       _isBuffering = true;
       _isPlaying = false;
       // A load starts playing by itself, unless the app goes to the
@@ -538,7 +579,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // Read the last good position before the error state overwrites it.
     if (value.hasError) _carryPositionToNextLoad();
 
-    if (value.isPlaying) _loadHasPlayed = true;
+    if (value.isPlaying) {
+      _loadHasPlayed = true;
+      _notePlaying(value.position);
+    }
     setState(() {
       _isPlaying = value.isPlaying;
       // Until the first frame the load counts as buffering, so the spinner
@@ -621,6 +665,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     });
 
     if (value.isPlaying) {
+      _notePlaying(value.position);
       _bufferingWatchdog?.cancel();
       if (!wasPlaying) {
         // Playback just started: the control overlay is opaque to taps and
@@ -747,6 +792,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _menuOpen = false;
       setState(() {
         _currentEpisodeIndex++;
+        _autoReresolves = 0;
         // Only a safe index for the old list. The source for the new episode
         // is chosen in build(), when its list arrives.
         _currentSourceIndex = 0;
@@ -812,7 +858,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
         ),
         data: (sources) {
-          if (sources != _availableSources) {
+          // While a refresh runs, `when` passes the provider's previous list;
+          // only a finished answer counts.
+          final answered =
+              sources != _availableSources && !streamsAsync.isLoading;
+          if (answered &&
+              _reresolving &&
+              sources.isEmpty &&
+              _availableSources.isNotEmpty) {
+            // A fresh resolution found nothing (offline, page down). Keep the
+            // old list, so the player keeps Retry Stream instead of the dead
+            // end of "no streams".
+            _reresolving = false;
+            DLog.event('player.reresolve', 'empty, keeping old list');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              setState(() {
+                _isBuffering = false;
+                _isPlaying = false;
+                _errorMessage = ref.read(stringsProvider)(S.playerNoServer);
+              });
+            });
+          } else if (answered) {
+            _reresolving = false;
             _availableSources = sources;
             // Indexes of the old list mean nothing in the new one, and a
             // menu that was open belongs to the old list.
@@ -835,7 +903,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             }
           }
 
-          if (sources.isEmpty) {
+          if (_availableSources.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -939,23 +1007,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         ),
                         const SizedBox(height: 12),
                         ElevatedButton(
+                          // Every source was tried with its old URL. Fresh
+                          // ones may work, so resolve the sources again; the
+                          // new list starts from the source the user or the
+                          // settings prefer.
                           onPressed: () {
-                            // Every source was tried, so the index is on
-                            // the last and worst one. Start over from the
-                            // source the user or the settings prefer.
-                            _failedSources.clear();
                             _carryPositionToNextLoad();
-                            final sticky = stickySourceIndex(
-                              _availableSources,
-                              _userSource,
-                            );
-                            final index = sticky >= 0
-                                ? sticky
-                                : _findInitialSourceIndex(_availableSources);
-                            setState(() {
-                              _currentSourceIndex = index;
-                            });
-                            _initializeStream(_availableSources[index]);
+                            _reresolveSources(automatic: false);
                           },
                           child: Text(s(S.retryStream)),
                         ),
