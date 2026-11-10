@@ -144,32 +144,35 @@ class PlayerControls extends ConsumerWidget {
                           onSourceChanged(index);
                           onMenuClosed?.call();
                         },
-                        itemBuilder: (context) => List.generate(
-                          sources.length,
-                          (i) => PopupMenuItem(
-                            value: i,
-                            child: Row(
-                              children: [
-                                if (i == currentSourceIndex)
-                                  const Icon(
-                                    Icons.check,
-                                    size: 18,
-                                    color: Color(0xFFE50914),
-                                  )
-                                else
-                                  const SizedBox(width: 18),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    sourceLabel(sources[i], i),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                        itemBuilder: (context) {
+                          final labels = sourceLabels(sources);
+                          return List.generate(
+                            sources.length,
+                            (i) => PopupMenuItem(
+                              value: i,
+                              child: Row(
+                                children: [
+                                  if (i == currentSourceIndex)
+                                    const Icon(
+                                      Icons.check,
+                                      size: 18,
+                                      color: Color(0xFFE50914),
+                                    )
+                                  else
+                                    const SizedBox(width: 18),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      labels[i],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                   ],
                 ),

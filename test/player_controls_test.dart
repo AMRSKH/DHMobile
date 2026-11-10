@@ -99,11 +99,14 @@ void main() {
                       'Hardsub Indonesia, English Subtitle Mirror Server '
                       'With A Very Long Descriptive Name OK.ru 144p',
                   quality: '144p',
+                  sourceName:
+                      'AVeryLongSourceNameThatWouldNotFitOnOneLineAtAll',
                 ),
                 StreamSource(
                   url: 'https://example.com/b.mp4',
                   server: 'Dailymotion Fast',
                   quality: 'Multi-Bitrate (HLS)',
+                  sourceName: 'DonghuaWorld',
                 ),
               ],
               currentSourceIndex: 0,
@@ -129,8 +132,11 @@ void main() {
     expect(menuOpened, 1);
     // A RenderFlex overflow would be reported as a test exception here.
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('144p (144p)'), findsNothing);
-    expect(find.text('Dailymotion Fast (Multi-Bitrate (HLS))'), findsOneWidget);
+    expect(
+      find.text('ENG-AVeryLongSourceNameThatWouldNotFitOnOneLineAtAll 144p'),
+      findsOneWidget,
+    );
+    expect(find.text('SUB-DonghuaWorld Auto'), findsOneWidget);
 
     // Tap outside the menu to dismiss it without a selection.
     await tester.tapAt(const Offset(10, 590));
@@ -140,7 +146,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Select Server / Quality'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dailymotion Fast (Multi-Bitrate (HLS))'));
+    await tester.tap(find.text('SUB-DonghuaWorld Auto'));
     await tester.pumpAndSettle();
     expect(selectedSource, 1);
     expect(menuClosed, 2);

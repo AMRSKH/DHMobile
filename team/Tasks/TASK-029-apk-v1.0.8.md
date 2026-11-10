@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-029
-Status: In Review
+Status: Completed
 
 # TASK-029: Build and archive APK v1.0.8
 
@@ -42,7 +42,7 @@ this build are in TASK-027 and TASK-028.
 ## Git Commit
 
 - Commit Message: `chore(release): build APK v1.0.8 per ABI [TASK-029]`
-- Commit Hash:
+- Commit Hash: de186f8
 
 ## Notes and Limitations
 

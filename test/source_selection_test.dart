@@ -292,26 +292,119 @@ void main() {
   });
 
   group('sourceLabel', () {
-    test('does not print the quality twice', () {
+    StreamSource site(String? server, String quality, [String? name]) =>
+        StreamSource(
+          url: 'https://x.test/$quality',
+          server: server,
+          quality: quality,
+          sourceName: name,
+        );
+
+    test('reads SubLang-Source quality', () {
       expect(
-        sourceLabel(_src('Hardsub English OK.ru 720p', '720p'), 0),
-        'Hardsub English OK.ru 720p',
+        sourceLabel(site('Hardsub English OK.ru 720p', '720p', 'AnimeXin'), 0),
+        'ENG-AnimeXin 720p',
       );
       expect(
-        sourceLabel(_src('Hardsub English OK.ru 144P', '144p'), 0),
-        'Hardsub English OK.ru 144P',
+        sourceLabel(
+          site('Hardsub Indonesia Ok.ru AX', '1440p', 'DonghuaStream'),
+          0,
+        ),
+        'IDN-DonghuaStream 2K',
+      );
+      expect(
+        sourceLabel(site('Dailymotion server', '2160p', 'DonghuaWorld'), 0),
+        'SUB-DonghuaWorld 4K',
+      );
+      expect(
+        sourceLabel(
+          site('All Sub Player Dailymotion', 'Multi-Bitrate (HLS)', 'LMAnime'),
+          0,
+        ),
+        'MULTI-LMAnime Auto',
       );
     });
 
-    test('adds the quality when the server label lacks it', () {
-      expect(
-        sourceLabel(_src('Dailymotion Fast', 'Multi-Bitrate (HLS)'), 0),
-        'Dailymotion Fast (Multi-Bitrate (HLS))',
-      );
+    test('names a stream without a site by its position', () {
+      expect(sourceLabel(site(null, '480p'), 2), 'SUB-Server 3 480p');
     });
 
-    test('names a source without a server by its position', () {
-      expect(sourceLabel(_src(null, '480p'), 2), 'Server 3 (480p)');
+    test('numbers equal labels in list order', () {
+      expect(
+        sourceLabels([
+          site('Hardsub English Ok.ru', '720p', 'AnimeXin'),
+          site('Hardsub English Dailymotion', '720p', 'AnimeXin'),
+          site('Hardsub English Rumble', '720p', 'AnimeXin'),
+          site('Hardsub Indonesia Ok.ru', '720p', 'AnimeXin'),
+        ]),
+        [
+          'ENG-AnimeXin 720p',
+          'ENG-AnimeXin 720p (2)',
+          'ENG-AnimeXin 720p (3)',
+          'IDN-AnimeXin 720p',
+        ],
+      );
+    });
+  });
+
+  group('subLangCode', () {
+    test('finds the language words of the sites', () {
+      expect(subLangCode('Hardsub English Ok.ru AX'), 'ENG');
+      expect(subLangCode('ENG SUB'), 'ENG');
+      expect(subLangCode('Ok ru English'), 'ENG');
+      expect(subLangCode('Hardsub Indonesia Rumble AX'), 'IDN');
+      expect(subLangCode('Dtube Indo AX'), 'IDN');
+      expect(subLangCode('Rumble Multi Sub'), 'MULTI');
+      expect(subLangCode('Multisub Alternative'), 'MULTI');
+      expect(subLangCode('All Sub Player Dailymotion AX'), 'MULTI');
+      expect(subLangCode('Portugués Alternative'), 'POR');
+    });
+
+    test('says SUB when the name has no language', () {
+      expect(subLangCode('Dailymotion server'), 'SUB');
+      expect(subLangCode('Primary Embed'), 'SUB');
+      expect(subLangCode(null), 'SUB');
+      // "eng" only as a word: "Engine" is no language.
+      expect(subLangCode('Engine 2'), 'SUB');
+    });
+  });
+
+  group('qualityName', () {
+    test('names 2K and 4K, keeps the other heights', () {
+      expect(qualityName('2160p'), '4K');
+      expect(qualityName('1440p'), '2K');
+      expect(qualityName('1080p'), '1080p');
+      expect(qualityName('144P'), '144p');
+      expect(qualityName('Dailymotion 4K'), '4K');
+    });
+
+    test('calls adaptive and unknown streams Auto', () {
+      expect(qualityName('Multi-Bitrate (HLS)'), 'Auto');
+      expect(qualityName('Auto HLS'), 'Auto');
+      expect(qualityName('Multi-Quality'), 'Auto');
+      expect(qualityName('Default'), 'Auto');
+    });
+
+    test('keeps the word of a stream without a height', () {
+      expect(qualityName('Direct'), 'Direct');
+      expect(qualityName('Direct MP4'), 'Direct MP4');
+    });
+  });
+
+  group('2K and 4K preference', () {
+    StreamSource q(String quality) =>
+        StreamSource(url: 'https://x.test/$quality', quality: quality);
+
+    test('picks 2160p for 4K and 1440p for 2K', () {
+      final sources = [q('720p'), q('1440p'), q('2160p'), q('1080p')];
+      expect(
+        pickInitialSourceIndex(sources, quality: '2160p', subtitle: 'None'),
+        2,
+      );
+      expect(
+        pickInitialSourceIndex(sources, quality: '1440p', subtitle: 'None'),
+        1,
+      );
     });
   });
 

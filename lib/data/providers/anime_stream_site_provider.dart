@@ -296,7 +296,10 @@ class AnimeStreamSiteProvider implements DonghuaStreamProvider {
           'resolved=${resolvedSources.length} episode=$episodeId',
     );
     if (resolvedSources.isEmpty) return const [];
-    final filtered = await StreamSourceFilter().filter(resolvedSources);
+    final filtered = [
+      for (final s in await StreamSourceFilter().filter(resolvedSources))
+        s.copyWith(sourceName: name),
+    ];
     DLog.event(
       'streams.ready',
       'kept=${filtered.length} '

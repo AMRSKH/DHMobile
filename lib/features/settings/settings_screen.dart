@@ -10,11 +10,27 @@ import 'settings_controller.dart';
 
 // Stored values. `source_selection.dart` reads them as they are, so only the
 // label on screen is translated.
-const List<String> _qualityValues = ['Auto', '1080p', '720p', '480p'];
+const List<String> _qualityValues = [
+  'Auto',
+  '2160p',
+  '1440p',
+  '1080p',
+  '720p',
+  '480p',
+];
 const List<String> _subtitleValues = ['English', 'Indonesian', 'None'];
 
 String _qualityLabel(AppStrings s, String value) {
-  return value == 'Auto' ? s(S.qualityAuto) : value;
+  switch (value) {
+    case 'Auto':
+      return s(S.qualityAuto);
+    case '2160p':
+      return '4K';
+    case '1440p':
+      return '2K';
+    default:
+      return value;
+  }
 }
 
 String _subtitleLabel(AppStrings s, String value) {
