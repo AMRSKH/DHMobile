@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-023
-Status: In Review
+Status: Completed
 
 # TASK-023: Fixes from the device test of v1.0.5
 
@@ -100,7 +100,7 @@ AGENTS.md Technology stack: VLC software decoding and the pinned interface overr
 ## Git Commit
 
 - Commit Message: `fix(app): add the search entry and make VLC play [TASK-023]`
-- Commit Hash:
+- Commit Hash: 02ed2bd
 
 ## Final Report
 
