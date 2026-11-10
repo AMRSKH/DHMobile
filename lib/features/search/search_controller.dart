@@ -10,10 +10,13 @@ final streamProvider = Provider<DonghuaStreamProvider>((ref) {
   return MultiSourceStreamProvider();
 });
 
+/// Search is a page pushed from Explore, so its state goes with the page: a
+/// new visit starts with an empty field and the popular list, not the
+/// results of the last visit (QA TASK-023).
 final searchControllerProvider =
-    NotifierProvider<SearchController, AsyncValue<List<Show>>>(() {
-      return SearchController();
-    });
+    NotifierProvider.autoDispose<SearchController, AsyncValue<List<Show>>>(
+      SearchController.new,
+    );
 
 class SearchController extends Notifier<AsyncValue<List<Show>>> {
   // Counts requests. A search can wait up to the slowest source, so an

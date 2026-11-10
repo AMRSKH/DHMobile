@@ -260,12 +260,13 @@ packages:
     source: hosted
     version: "7.4.4"
   flutter_vlc_player_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: flutter_vlc_player_platform_interface
-      sha256: "99fbb806f86ce1c53ba007157c183104a100aa643eda0cec7e71118bf0460578"
-      url: "https://pub.dev"
-    source: hosted
+      path: flutter_vlc_player_platform_interface
+      ref: "988a7e67140786fb5510c96e4cb415dbfd837944"
+      resolved-ref: "988a7e67140786fb5510c96e4cb415dbfd837944"
+      url: "https://github.com/solid-software/flutter_vlc_player.git"
+    source: git
     version: "2.0.5"
   flutter_web_plugins:
     dependency: transitive

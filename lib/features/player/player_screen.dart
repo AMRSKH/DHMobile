@@ -426,7 +426,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
         final controller = VlcPlayerController.network(
           source.url,
-          hwAcc: HwAcc.auto,
+          // Software decoding. With MediaCodec (auto) libVLC drew a corrupt
+          // picture on the SM-A546E ("Timestamp conversion failed ... no
+          // reference clock"), and `decoding` drew black (TASK-023).
+          hwAcc: HwAcc.disabled,
           autoPlay: true,
           options: vlcOptions,
           // Without this the package adds its own lifecycle observer, which

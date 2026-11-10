@@ -10,6 +10,7 @@ import '../../core/widgets/underline_tab_bar.dart';
 import '../../domain/models/schedule_entry.dart';
 import '../../domain/models/show.dart';
 import '../detail/detail_screen.dart';
+import '../search/search_screen.dart';
 import '../settings/settings_controller.dart';
 import 'explore_controller.dart';
 
@@ -49,6 +50,20 @@ class ExploreScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(s(S.explore)),
         actions: [
+          // Search has no tab of its own since Explore replaced it, so this
+          // is the way in (device test, TASK-023).
+          IconButton(
+            tooltip: s(S.search),
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              DLog.event('explore.search', 'open');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SearchScreen(autofocus: true),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: s(S.refresh),
             icon: const Icon(Icons.refresh),

@@ -1,7 +1,7 @@
 Author: AI Agent
 Date: 2026-11-10
 Task: TASK-022
-Status: In Review
+Status: Completed
 
 # TASK-022: Build and archive APK v1.0.5
 
@@ -73,7 +73,7 @@ its README hash (`BC1BF1ED...`), so the older files were not touched.
 ## Git Commit
 
 - Commit Message: `chore(release): build APK v1.0.5 per ABI [TASK-022]`
-- Commit Hash:
+- Commit Hash: d8dcb5e
 
 ## Final Report
 

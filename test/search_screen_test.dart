@@ -47,7 +47,8 @@ void main() {
     await _pumpSearch(tester, fake);
     await _wait(tester);
 
-    expect(find.text('DHMobile'), findsOneWidget);
+    expect(find.text('Search'), findsOneWidget);
+    expect(find.text('DHMobile'), findsNothing);
     expect(find.text('DonghuaPlayer'), findsNothing);
     expect(find.byType(SkeletonPosterGrid), findsOneWidget);
     expect(find.byType(SkeletonBox), findsWidgets);
@@ -181,8 +182,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.byTooltip('ផ្ទុកឡើងវិញ'), findsOneWidget);
-    // The app name is not translated.
-    expect(find.text('DHMobile'), findsOneWidget);
+    // The page title follows the language.
+    expect(find.text('ស្វែងរក'), findsOneWidget);
   });
 
   testWidgets('each result shows the name of its source', (tester) async {

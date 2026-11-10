@@ -10,6 +10,7 @@ import 'package:donghua_player/features/explore/explore_controller.dart';
 import 'package:donghua_player/features/explore/explore_screen.dart';
 import 'package:donghua_player/features/library/library_controller.dart';
 import 'package:donghua_player/features/search/search_controller.dart';
+import 'package:donghua_player/features/search/search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -500,5 +501,68 @@ void main() {
     expect(_tabSelected(tester, 'ពេញនិយម'), isTrue);
     expect(_tabSelected(tester, 'កាលវិភាគ'), isFalse);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the search button opens Search with the keyboard up', (
+    tester,
+  ) async {
+    final fake = FakeStreamProvider(
+      onSchedule: () async => fakeWeek(),
+      onSearch: (_) async => [fakeShow('a', title: 'Popular A')],
+    );
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(find.byType(SearchScreen), findsNothing);
+
+    await tester.tap(find.byTooltip('Search'));
+    await _wait(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(SearchScreen), findsOneWidget);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.autofocus, isTrue);
+    expect(find.text('Popular A'), findsOneWidget);
+    // A pushed page: Back returns to Explore.
+    expect(find.byType(BackButton), findsOneWidget);
+  });
+
+  testWidgets('Search opens fresh each time, without the last results', (
+    tester,
+  ) async {
+    final fake = FakeStreamProvider(
+      onSchedule: () async => fakeWeek(),
+      onSearch: (q) async => [
+        fakeShow(
+          q.isEmpty ? 'p' : 'r',
+          title: q.isEmpty ? 'Popular A' : 'Result $q',
+        ),
+      ],
+    );
+    await _pumpExplore(tester, fake);
+    await _wait(tester);
+
+    await tester.tap(find.byTooltip('Search'));
+    await _wait(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.byType(TextField), 'soul');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await _wait(tester);
+    expect(find.text('Result soul'), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await _wait(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byTooltip('Search'));
+    await _wait(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Result soul'), findsNothing);
+    expect(find.text('Popular A'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '',
+    );
   });
 }

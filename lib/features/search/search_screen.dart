@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/app_info.dart';
 import '../../core/debug_log.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,7 +14,11 @@ import 'search_controller.dart';
 class SearchScreen extends ConsumerStatefulWidget {
   final void Function(Show show)? onShowSelected;
 
-  const SearchScreen({super.key, this.onShowSelected});
+  /// Opens the keyboard on the search field at once, for a search that the
+  /// user just asked for.
+  final bool autofocus;
+
+  const SearchScreen({super.key, this.onShowSelected, this.autofocus = false});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -42,7 +45,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppInfo.name),
+        title: Text(s(S.search)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -62,6 +65,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: TextField(
               controller: _queryController,
+              autofocus: widget.autofocus,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _onSearch(),
               decoration: InputDecoration(

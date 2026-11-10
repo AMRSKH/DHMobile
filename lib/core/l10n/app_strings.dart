@@ -53,6 +53,7 @@ enum S {
   exploreEmptyList,
 
   // Search
+  search,
   searchHint,
   searchEmpty,
 
@@ -168,6 +169,7 @@ const Map<S, String> _en = {
   S.exploreEmptyDay: 'No shows are scheduled for this day.',
   S.exploreEmptyList: 'Nothing to show yet.',
 
+  S.search: 'Search',
   S.searchHint: 'Search Donghua (e.g. BTTH, Soul Land)...',
   S.searchEmpty: 'No donghua found. Try another title.',
 
@@ -284,6 +286,7 @@ const Map<S, String> _km = {
   S.exploreEmptyDay: 'គ្មានរឿងក្នុងកាលវិភាគសម្រាប់ថ្ងៃដែលបានជ្រើសទេ។',
   S.exploreEmptyList: 'មិនទាន់មានរឿងសម្រាប់បង្ហាញទេ។',
 
+  S.search: 'ស្វែងរក',
   S.searchHint: 'ស្វែងរក Donghua (ឧ. BTTH, Soul Land)...',
   S.searchEmpty: 'រកមិនឃើញ Donghua ទេ។ សូមសាកចំណងជើងផ្សេង។',
 
