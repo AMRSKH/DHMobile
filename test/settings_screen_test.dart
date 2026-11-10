@@ -108,7 +108,7 @@ void main() {
 
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('DHMobile'), findsOneWidget);
-    expect(find.text('Version 1.0.8'), findsOneWidget);
+    expect(find.text('Version 1.0.9'), findsOneWidget);
     expect(find.textContaining('build'), findsNothing);
     expect(find.text('Credits'), findsOneWidget);
     expect(
